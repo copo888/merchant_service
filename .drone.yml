@@ -1,0 +1,74 @@
+kind: pipeline
+name: copo_bo_api
+
+clone:
+  disable: true
+
+steps:
+  - name: docker
+    image: appleboy/drone-ssh
+    settings:
+      host:
+        from_secret: host
+      username:
+        from_secret: user
+      password:
+        from_secret: pwd
+      port:
+        from_secret: port
+      script:
+        - cd /root/copo_v2
+        - git checkout -- .
+        - git checkout dev
+        - git pull origin dev
+        - git checkout -- .
+        - go mod tidy
+        - docker-compose down
+        - docker rmi -f $(docker images --filter="reference=boadmin_service" --quiet)
+        - docker rmi -f $(docker images -qf "dangling=true")
+        - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/boadmin boadmin/boadmin.go
+        - docker build -t boadmin_service -f boadmin/Dockerfile .
+        - docker-compose up -d
+    when:
+      branch:
+        - dev
+      event:
+        - push
+
+---
+kind: pipeline
+name: merchant_api
+
+clone:
+  disable: true
+
+steps:
+  - name: docker-merchant
+    image: appleboy/drone-ssh
+    settings:
+      host:
+        from_secret: host
+      username:
+        from_secret: user
+      password:
+        from_secret: pwd
+      port:
+        from_secret: port
+      script:
+        - cd /root/copo_v2
+        - git checkout -- .
+        - git checkout merchant_service
+        - git checkout -- .
+        - git pull origin merchant_service
+        - go mod tidy
+        - docker-compose -f merchant/docker-compose.yml down
+        - docker rmi -f $(docker images --filter="reference=merchant_service" --quiet)
+        - docker rmi -f $(docker images -qf "dangling=true")
+        - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/merchant merchant/merchant.go
+        - docker build -t merchant_service -f merchant/Dockerfile .
+        - docker-compose -f merchant/docker-compose.yml up -d
+    when:
+      branch:
+        - merchant_service
+      event:
+        - push

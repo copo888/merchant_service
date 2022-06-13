@@ -1,0 +1,77 @@
+syntax = "v1"
+
+info(
+    title: "type title here"
+    desc: "type desc here"
+    author: "type author here"
+    email: "type email here"
+    version: "type version here"
+)
+
+type RespData {
+    WithdrawOrderNo string `json:"withdrawOrderNo"`
+    Sign string `json:"sign"`
+}
+
+type WithdrawApiOrderRequest {
+    MerchantId string `json:"merchantId"`
+    Sign string `json:"sign"`
+    NotifyUrl string `json:"notifyUrl"`
+    PageUrl string `json:"pageUrl, optional"`
+    WithdrawName string `json:"withdrawName"`
+    BankName string `json:"bankName"`
+    AccountNo string `json:"accountNo"`
+    BankProvince string `json:"bankProvince, optional"`
+    BankCity string `json:"bankCity, optional"`
+    OrderAmount string `json:"orderAmount"`
+    Language string `json:"language"`
+    OrderNo string `json:"orderNo"`
+    Currency string`json:"currency"`
+}
+
+type WithdrawApiOrderResponse {
+    RespCode string `json:"respCode"`
+    RespMsg string `json:"respMsg"`
+    RespData RespData `json:"data"`
+    Trace string `json:"trace"`
+}
+
+type WithdrawApiQueryRequest {
+    MerchantId string `json:"merchantId"`
+    OrderNo string `json:"orderNo"`
+    Sign string `json:"sign"`
+}
+
+type WithdrawApiQueryResponse {
+    RespCode string `json:"respCode"`
+    RespMsg string `json:"respMsg"`
+    OrderStatus string `json:"orderStatus"`
+    MerchantId string `json:"merchantId"`
+    OrderAmount string `json:"orderAmount"`
+    Sign string `json:"sign"`
+}
+
+type SystemRate {
+    ID                   int64   `json:"id"`
+    CurrencyCode         string  `json:"currencyCode"`
+    WithdrawHandlingFee  float64 `json:"withdrawHandlingFee"`
+    MinWithdrawCharge    float64 `json:"minWithdrawCharge"`
+    MaxWithdrawCharge    float64 `json:"maxWithdrawCharge"`
+    CreatedBy            string  `json:"createdBy"`
+    UpdatedBy            string  `json:"updatedBy"`
+}
+
+@server(
+    group: withdraworder
+    prefix: dior/merchant-api
+)
+service merchant-api {
+    @handler WithdrawApiOrderHandler
+    post /withdraw-order (WithdrawApiOrderRequest) returns (WithdrawApiOrderResponse)
+
+    @handler WithdrawApiQueryHandler
+    post /withdraw-query (WithdrawApiQueryRequest) returns (WithdrawApiQueryResponse)
+
+    @handler WithdrawApiTestCallBackHandler
+    post /withdraw-test-callback () returns (string)
+}

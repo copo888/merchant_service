@@ -1,0 +1,37 @@
+syntax = "v1"
+
+info(
+    title: "type title here"
+    desc: "type desc here"
+    author: "type author here"
+    email: "type email here"
+    version: "type version here"
+)
+
+type GenerateSignRequest {
+
+}
+
+type TestPayOrderRequest {
+    Currency string `json:"currency" validate:"max=5"`
+    PayType string `json:"payType" validate:"max=8"`
+    PayTypeNo string `json:"payTypeNo, optional" validate:"max=4"`
+    OrderAmount string `json:"orderAmount"`
+    IP string `json:"ip"`
+    BankCode string `json:"bankCode, optional"`
+    JumpType string `json:"jumpType, optional" validate:"max=12"`
+    MerchantId string `json:"merchantId"`
+    MerchantKey string `json:"merchantKey"`
+}
+
+@server(
+    group: test
+    prefix: dior/test-api
+)
+service merchant-api {
+    @handler GenerateSignHndler
+    post /generate-sign (GenerateSignRequest) returns (string)
+
+    @handler TestPayOrderHndler
+    post /pay-order (TestPayOrderRequest) returns (string)
+}

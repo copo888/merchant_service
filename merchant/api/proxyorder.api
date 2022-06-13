@@ -1,0 +1,123 @@
+syntax = "v1"
+
+info(
+    title: "type title here"
+    desc: "type desc here"
+    author: "type author here"
+    email: "type email here"
+    version: "type version here"
+)
+
+type ProxyPayOrderRequest {
+    AccessType string `json:"accessType" validate:"max=2"`
+    MerchantId string `json:"merchantId" valiate: "required"`
+    Sign string `json:"sign" valiate: "required"`
+    NotifyUrl string `json:"notifyUrl" validate: "required"`
+    Language string `json:"language" valiate: "required"`
+                                                                  //========请求参数(業務參數)===========
+    OrderNo string `json:"orderNo" validate: "required"`
+    BankId string `json:"bankId" validate: "required"`
+    BankName string `json:"bankName" validate: "required"`
+    BankProvince string `json:"bankProvince" validate: "required"`
+    BankCity string `json:"bankCity" validate: "required"`
+    BranchName string `json:"branchName, optional"`
+    BankNo string `json:"bankNo" valiate: "required"`
+    OrderAmount float64 `json:"orderAmount" validate: "required"` //到小數兩位
+    DefrayName string `json:"defrayName" validate: "required"`
+    DefrayId string `json:"defrayId, optional"`
+    DefrayMobile string `json:"defrayMobile, optional"`
+    DefrayEmail string `json:"defrayEmail, optional"`
+    Currency string `json:"currency" validate: "required"`
+    PayTypeSubNo string `json:"payTypeSubNo,optional"`
+}
+
+type ProxyPayOrderResponse struct {
+    RespCode string `json:"respCode"`
+    RespMsg string `json:"respMsg"`
+    MerchantId string `json:"merchantId"`
+    OrderNo string `json:"orderNo"`
+    PayOrderNo string `json:"payOrderNo"`
+    OrderStatus string `json:"orderStatus"`
+    Sign string `json:"sign"`
+}
+
+type ProxyPayOrderQueryRequest struct {
+    AccessType string `json:"accessType" valiate: "required"`
+    MerchantId string `json:"merchantId" valiate: "required"`
+    OrderNo string `json:"orderNo" valiate: "required"`
+    Sign string `json:"sign" valiate: "required"`
+    Language string `json:"language" valiate: "required"`
+}
+
+type ProxyPayOrderQueryResponse struct {
+    RespCode string `json:"respCode"`
+    RespMsg string `json:"respMsg"`
+    MerchantId string `json:"merchantId"`
+    OrderNo string `json:"orderNo"`
+    LastUpdateTime string `json:"lastUpdateTime"`
+    PayOrderNo string `json:"payOrderNo"`
+    OrderStatus string `json:"orderStatus"`
+    CallbackStatus string `json:"callbackStatus"`
+    OrderAmount string `json:"orderAmount"`
+    Fee string `json:"fee"`
+    Sign string `json:"sign"`
+}
+
+//渠道App 回调Bo 请求参数
+type ProxyPayOrderCallBackRequest struct {
+    ProxyPayOrderNo string `json:"proxyPayOrderNo"`         // 平台订单号
+    ChannelOrderNo string `json:"channelOrderNo"`           //渠道商回复单号
+    ChannelResultAt string `json:"channelResultAt"`         //渠道商回复日期  //(YYYYMMDDhhmmss)
+    ChannelResultStatus string `json:"channelResultStatus"` //渠道商回复处理状态  //(Dior渠道商范例：状态 0处理中，1成功，2失败) */
+    ChannelResultNote string `json:"channelResultNote"`     //渠道商回复处理备注
+    Amount float64 `json:"amount"`                          //代付金额
+    ChannelCharge float64 `json:"channelCharge"`            //渠道商成本
+    UpdatedBy string `json:"updatedBy"`                     //更新人员
+}
+
+type ProxyPayOrderCallBackResponse {
+    RespCode string `json:"respCode"`
+    RespMsg string `json:"respMsg"`
+    Status int `json:"status"`
+    Data string `json:"data"`
+}
+
+//Bo 回调返回给channelApp
+type BoadminProxyRespVO struct {
+    Code string `json:"code"`
+    Message string `json:"message"`
+    Data string `json:"data"`
+    traceId string `json:"traceId"`
+}
+
+type MerchantCallBackReqeuest struct {
+    MerchantId string `json:"merchantId"`
+    OrderNo string `json:"orderNo"`
+    PayOrderNo string `json:"payOrderNo"`
+    OrderStatus string `json:"orderStatus"`
+    OrderAmount string `json:"orderAmount"`
+    Fee string `json:"fee"`
+    PayOrderTime string `json:"payOrderTime"`
+}
+
+
+@server(
+    group: proxypayorder
+    prefix: dior/merchant-api
+)
+service merchant-api {
+    @handler ProxyPayOrderHandler
+    post /proxy-order (ProxyPayOrderRequest) returns (ProxyPayOrderResponse)
+
+    @handler ProxyPayQueryHandler
+    post /proxy-query (ProxyPayOrderQueryRequest) returns (ProxyPayOrderQueryResponse)
+
+    @handler ProxyPayCallBackHandler
+    post /proxy-call-back (ProxyPayOrderCallBackRequest) returns (ProxyPayOrderCallBackResponse)
+
+    @handler TestMerchantCallBackHandler
+    post /merchant-call-back (MerchantCallBackReqeuest) returns (string)
+
+//    @handler ProxyPayRepayment
+//    post /proxy-repayment () returns ()
+}

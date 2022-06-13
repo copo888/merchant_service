@@ -1,0 +1,9 @@
+version: "2"
+services:
+  merchant_api:
+    container_name: merchant_service
+    image: merchant_service
+    volumes:
+      - /root/logs/merchant_service:/app/logs
+    restart: always
+    network_mode: host

@@ -1,0 +1,14 @@
+version: "2"
+services:
+  api:
+    container_name: boadmin_service
+    image: boadmin_service
+    volumes:
+      - /root/bo_uploads/qrcode:/app/public/qrcode
+      - /root/bo_uploads/uploads/internalcharges:/app/public/uploads/internalcharges
+      - /root/bo_uploads/uploads/paytypeimgs:/app/public/uploads/paytypeimgs
+      - /root/copo_v2/logs:/app/logs
+    restart: always
+    ports:
+      - 8080:8080
+      - 9091:9091
