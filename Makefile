@@ -1,4 +1,4 @@
-t := boadmin
+t := merchant
 lang:
 	easyi18n generate --pkg=locales ./locales ./locales/locales.go
 
