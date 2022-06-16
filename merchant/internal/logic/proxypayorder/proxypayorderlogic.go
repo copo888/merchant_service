@@ -145,6 +145,9 @@ func (l *ProxyPayOrderLogic) internalProxyPayOrder(merReq *types.ProxyPayRequest
 			return nil, errorz.New(response.FAIL, queryErr.Error())
 		}
 
+		respOrder.ErrorType = "1" //   1.渠道返回错误	2.渠道异常	3.商户参数错误	4.账户为黑名单	5.其他
+		respOrder.ErrorNote = "渠道返回错误: " + proxyPayRespVO.Message
+
 		if errRpc != nil {
 			logx.Errorf("代付提单 %s 还款失败。 Err: %s", respOrder.OrderNo, errRpc.Error())
 			respOrder.RepaymentStatus = constants.REPAYMENT_FAIL
