@@ -44,7 +44,6 @@ func (l *ProxyPayOrderLogic) ProxyPayOrder(merReq *types.ProxyPayRequestX) (*typ
 	redisKey := fmt.Sprintf("%s-%s", merReq.MerchantId, merReq.OrderNo)
 	redisLock := redislock.New(l.svcCtx.RedisClient, redisKey, "proxy-pay:")
 	redisLock.SetExpire(5)
-	//New(l.svcCtx.RedisClient,redisKey,"proxy-pay:").
 	if isOK, _ := redisLock.Acquire(); isOK {
 		if resp, err = l.internalProxyPayOrder(merReq); err != nil {
 			return nil, err
@@ -169,7 +168,6 @@ func (l *ProxyPayOrderLogic) internalProxyPayOrder(merReq *types.ProxyPayRequest
 	if errUpdate := l.svcCtx.MyDB.Table("tx_orders").Updates(respOrder).Error; errUpdate != nil {
 		logx.Error("代付订单更新状态错误: ", errUpdate.Error())
 	}
-
 	// 依渠道返回给予订单状态
 	var orderStatus string
 	if respOrder.Status == constants.FAIL {
