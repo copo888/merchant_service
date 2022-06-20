@@ -1,4 +1,3 @@
----
 kind: pipeline
 name: merchant_api
 
@@ -18,20 +17,25 @@ steps:
       port:
         from_secret: port
       script:
-        - cd /root/copo_v2
+        - cd /root/merchant_service
         - git checkout -- .
-        - git checkout merchant_service
-        - git checkout -- .
-        - git pull origin merchant_service
+        - git checkout dev
+        #- git checkout -- .
+        - git pull origin dev
+        #- git pull
         - go mod tidy
         - docker-compose -f merchant/docker-compose.yml down
         - docker rmi -f $(docker images --filter="reference=merchant_service" --quiet)
         - docker rmi -f $(docker images -qf "dangling=true")
-        - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/merchant merchant/merchant.go
-        - docker build -t merchant_service -f merchant/Dockerfile .
-        - docker-compose -f merchant/docker-compose.yml up -d
+        - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o merchant merchant/merchant.go
+        - docker build -t merchant_service .
+        - docker-compose -f docker-compose.yml up -d
     when:
       branch:
-        - merchant_service
+        - dev
       event:
         - push
+        
+trigger:
+  branch:
+    - dev
