@@ -4,6 +4,8 @@ Port: ${APP_PORT}
 Mode: ${APP_MODE}
 Verbose: ${HTTP_VERBOSE}
 
+Server: ${SERVER}
+
 FrontEndDomain: ${APP_FRONT_END_DOMAIN}
 
 Log:
