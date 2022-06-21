@@ -28,7 +28,7 @@ steps:
         - docker rmi -f $(docker images --filter="reference=merchant_service" --quiet)
         - docker rmi -f $(docker images -qf "dangling=true")
         - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o merchant merchant/merchant.go
-        - docker build -t merchant_service .
+        - docker build -t merchant_service -f merchant/Dockerfile .
         - docker-compose -f docker-compose.yml up -d
     when:
       branch:
