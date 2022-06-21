@@ -156,7 +156,7 @@ func CallChannel_ProxyOrder(context *context.Context, config *config.Config, mer
 		return nil, errorz.New(response.GENERAL_EXCEPTION, errk.Error())
 	}
 
-	url := fmt.Sprintf("http://%s:%s/api/proxy-pay", config.Host, rate.ChannelPort)
+	url := fmt.Sprintf("%s:%s/api/proxy-pay", config.Server, rate.ChannelPort)
 	chnResp, chnErr := gozzle.Post(url).Timeout(10).Trace(span).Header("authenticationProxyPaykey", ProxyKey).JSON(ProxyPayBO)
 	//res, err2 := http.Post(url,"application/json",bytes.NewBuffer(body))
 	if chnResp != nil {
