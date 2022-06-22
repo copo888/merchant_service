@@ -24,12 +24,12 @@ steps:
         - git pull origin stage
         - git pull
         - go mod tidy
-        - docker-compose -f down
+        - docker-compose down
         - docker rmi -f $(docker images --filter="reference=merchant_service" --quiet)
         - docker rmi -f $(docker images -qf "dangling=true")
         - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o merchant merchant/merchant.go
         - docker build -t merchant_service -f .
-        - docker-compose -f up -d
+        - docker-compose  up -d
     when:
       branch:
         - stage
