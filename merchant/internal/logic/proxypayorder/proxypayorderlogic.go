@@ -22,6 +22,7 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 	"golang.org/x/text/language"
 	"gorm.io/gorm"
+	"strconv"
 )
 
 type ProxyPayOrderLogic struct {
@@ -81,7 +82,7 @@ func (l *ProxyPayOrderLogic) internalProxyPayOrder(merReq *types.ProxyPayRequest
 	//    呼叫 transaction rpc (merReq, rate) (ProxyOrderNo) 并产生订单
 
 	//產生rpc 代付需要的請求的資料物件
-	ProxyPayOrderRequest, rateRpc := generateRpcdata(&merReq.ProxyPayOrderRequest, rate)
+	ProxyPayOrderRequest, rateRpc := generateRpcdata(merReq, rate)
 
 	rpc := transactionclient.NewTransaction(l.svcCtx.RpcService("transaction.rpc"))
 
@@ -212,7 +213,16 @@ func (l *ProxyPayOrderLogic) CheckMerAndWhiteList(req *types.ProxyPayRequestX) (
 }
 
 // 產生rpc 代付需要的請求的資料物件
-func generateRpcdata(merReq *types.ProxyPayOrderRequest, rate *types.CorrespondMerChnRate) (*transaction.ProxyPayOrderRequest, *transaction.CorrespondMerChnRate) {
+func generateRpcdata(merReq *types.ProxyPayRequestX, rate *types.CorrespondMerChnRate) (*transaction.ProxyPayOrderRequest, *transaction.CorrespondMerChnRate) {
+
+	var orderAmount float64
+	if s, ok := merReq.OrderAmount.(string); ok {
+		if s, err := strconv.ParseFloat(s, 64); err == nil {
+			orderAmount = s
+		}
+	} else if f, ok := merReq.OrderAmount.(float64); ok {
+		orderAmount = f
+	}
 
 	ProxyPayOrderRequest := &transaction.ProxyPayOrderRequest{
 		AccessType:   merReq.AccessType,
@@ -227,7 +237,7 @@ func generateRpcdata(merReq *types.ProxyPayOrderRequest, rate *types.CorrespondM
 		BankCity:     merReq.BankCity,
 		BranchName:   merReq.BranchName,
 		BankNo:       merReq.BankNo,
-		OrderAmount:  merReq.OrderAmount,
+		OrderAmount:  orderAmount,
 		DefrayName:   merReq.DefrayName,
 		DefrayId:     merReq.DefrayId,
 		DefrayMobile: merReq.DefrayMobile,
