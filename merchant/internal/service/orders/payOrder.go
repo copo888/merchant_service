@@ -50,6 +50,16 @@ func VerifyPayOrder(db *gorm.DB, req types.PayOrderRequestX, merchant *types.Mer
 }
 
 func CallChannelForPay(db *gorm.DB, req types.PayOrderRequestX, merchant *types.Merchant, orderNo string, ctx context.Context, svcCtx *svc.ServiceContext) (payReplyVO *vo.PayReplyVO, correspondMerChnRate *types.CorrespondMerChnRate, err error) {
+    orderAmount := ""
+	if s, ok := req.OrderAmount.(string); ok {
+		orderAmount = s
+	} else if f, ok := req.OrderAmount.(float64); ok {
+		orderAmount = fmt.Sprintf("%f", f)
+	} else {
+		s := fmt.Sprintf("OrderAmount err: %#v", req.OrderAmount)
+		logx.Errorf(s)
+		return nil, nil, errorz.New(response.API_INVALID_PARAMETER, s)
+	}
 
 	// 取得支付渠道資訊
 	if correspondMerChnRate, err = merchantchannelrateservice.GetDesignationMerChnRate(db, req.MerchantId, req.PayType, req.Currency, req.PayTypeNo, merchant.BillLadingType); err != nil {
@@ -63,7 +73,7 @@ func CallChannelForPay(db *gorm.DB, req types.PayOrderRequestX, merchant *types.
 
 	// 確認支付金額上下限
 	var amount float64
-	if amount, err = strconv.ParseFloat(req.OrderAmount, 64); err != nil {
+	if amount, err = strconv.ParseFloat(orderAmount, 64); err != nil {
 		return nil, nil, errorz.New(response.INVALID_AMOUNT, fmt.Sprintf("(orderAmount): %s", req.OrderAmount))
 	}
 	if amount < 0 {
@@ -81,7 +91,7 @@ func CallChannelForPay(db *gorm.DB, req types.PayOrderRequestX, merchant *types.
 		OrderNo:           orderNo,
 		PayType:           correspondMerChnRate.PayTypeCode,
 		ChannelPayType:    correspondMerChnRate.MapCode,
-		TransactionAmount: req.OrderAmount,
+		TransactionAmount: orderAmount,
 		BankCode:          req.BankCode,
 		PageUrl:           req.PageUrl,
 		OrderName:         req.OrderName,
