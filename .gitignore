@@ -3,3 +3,5 @@
 .DS_Store
 bin
 logs
+docker-compose.yml
+Dockerfile
