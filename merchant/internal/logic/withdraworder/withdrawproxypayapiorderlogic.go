@@ -14,6 +14,7 @@ import (
 	"github.com/neccoys/go-zero-extension/redislock"
 	"golang.org/x/text/language"
 	"gorm.io/gorm"
+	"strconv"
 
 	"com.copo/bo_service/merchant/internal/svc"
 	"com.copo/bo_service/merchant/internal/types"
@@ -58,7 +59,14 @@ func (l *WithdrawProxyPayApiOrderLogic) WithdrawProxyPayApiOrder(req *types.Prox
 		if !b {
 			return nil, err
 		}
-
+		var orderAmount float64
+		if s, ok := req.OrderAmount.(string); ok {
+			if s, err := strconv.ParseFloat(s, 64); err == nil {
+				orderAmount = s
+			}
+		} else if f, ok := req.OrderAmount.(float64); ok {
+			orderAmount = f
+		}
 		var withdrawOrders []types.OrderWithdrawCreateRequestX
 		var withdrawOrder types.OrderWithdrawCreateRequestX
 		withdrawOrder.Type = "XF"
@@ -68,7 +76,7 @@ func (l *WithdrawProxyPayApiOrderLogic) WithdrawProxyPayApiOrder(req *types.Prox
 		withdrawOrder.MerchantBankCity = req.BankCity
 		withdrawOrder.MerchantBankAccount = req.BankNo
 		withdrawOrder.CurrencyCode = req.Currency
-		withdrawOrder.OrderAmount = req.OrderAmount
+		withdrawOrder.OrderAmount = orderAmount
 		withdrawOrder.Source = constants.API
 		withdrawOrder.MerchantCode = req.MerchantId
 		withdrawOrder.UserAccount = req.MerchantId

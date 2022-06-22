@@ -8,9 +8,9 @@ import (
 	"com.copo/bo_service/merchant/internal/types"
 	"encoding/json"
 	"github.com/thinkeridea/go-extend/exnet"
-	"github.com/zeromicro/go-zero/rest/httpx"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"io"
 	"net/http"
 )
 
@@ -20,8 +20,13 @@ func WithdrawProxyPayApiOrderHandler(ctx *svc.ServiceContext) http.HandlerFunc {
 
 		span := trace.SpanFromContext(r.Context())
 		defer span.End()
+		bodyBytes, err := io.ReadAll(r.Body)
+		if  err != nil {
+			response.Json(w, r, response.FAIL, nil, err)
+			return
+		}
 
-		if err := httpx.ParseJsonBody(r, &req); err != nil {
+		if err := json.Unmarshal(bodyBytes, &req); err != nil {
 			response.Json(w, r, response.FAIL, nil, err)
 			return
 		}
