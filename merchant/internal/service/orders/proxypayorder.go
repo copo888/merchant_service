@@ -11,6 +11,7 @@ import (
 	"github.com/copo888/transaction_service/rpc/transactionclient"
 	"github.com/neccoys/go-zero-extension/redislock"
 	"regexp"
+	"strconv"
 	"time"
 
 	"com.copo/bo_service/common/apimodel/bo"
@@ -81,6 +82,21 @@ func checkProxyOrderAndRate(db *gorm.DB, merchant *types.Merchant, req *types.Pr
 	//var balanceType string
 	//var orderFeeProfits []types.OrderFeeProfit
 
+	var orderAmount float64
+	if s, ok := req.OrderAmount.(string); ok {
+		if s, err := strconv.ParseFloat(s, 64); err == nil {
+			orderAmount = s
+		} else {
+			return nil, errorz.New(response.API_INVALID_PARAMETER, err.Error())
+		}
+	} else if f, ok := req.OrderAmount.(float64); ok {
+		orderAmount = f
+	} else {
+		s := fmt.Sprintf("OrderAmount err: %#v", req.OrderAmount)
+		logx.Errorf(s)
+		return nil, errorz.New(response.API_INVALID_PARAMETER, s)
+	}
+
 	//检查商户ＡＰＩ提单，代付订单资料是否正确
 	err = validProxyPayOrderDataByApi(db, req)
 	if err != nil {
@@ -102,10 +118,10 @@ func checkProxyOrderAndRate(db *gorm.DB, merchant *types.Merchant, req *types.Pr
 		return nil, errorz.New(response.MERCHANT_IS_NOT_SETTING_CHANNEL, string(jsonData), errParse.Error())
 	} else {
 		// 判断提单金额最低金额、最高金额
-		if req.OrderAmount < rate1.SingleMinCharge {
+		if orderAmount < rate1.SingleMinCharge {
 			logx.Errorf("付款人:%s,银行账号:%s,%f单笔小于最低代付金额%f", req.DefrayName, req.BankNo, req.OrderAmount, rate1.SingleMinCharge)
 			return rate1, errorz.New(response.IS_LESS_MINIMUN_AMOUNT, fmt.Sprintf("%f", req.OrderAmount), fmt.Sprintf("%f", rate1.SingleMinCharge))
-		} else if req.OrderAmount > rate1.SingleMaxCharge {
+		} else if orderAmount > rate1.SingleMaxCharge {
 			logx.Errorf("付款人:%s,银行账号:%s,%f单笔大于最高代付金额%f", req.DefrayName, req.BankNo, req.OrderAmount, rate1.SingleMaxCharge)
 			return rate1, errorz.New(response.IS_GREATER_MXNIMUN_AMOUNT, fmt.Sprintf("%f", req.OrderAmount), fmt.Sprintf("%f", rate1.SingleMinCharge))
 		}
@@ -436,6 +452,22 @@ func autoFillBankName(db *gorm.DB, req *types.ProxyPayRequestX) (err error) {
 }
 
 func validateProxyParam(db *gorm.DB, req *types.ProxyPayRequestX, merchant *types.Merchant) (err error) {
+
+	var orderAmount float64
+	if s, ok := req.OrderAmount.(string); ok {
+		if s, err := strconv.ParseFloat(s, 64); err == nil {
+			orderAmount = s
+		} else {
+			return errorz.New(response.API_INVALID_PARAMETER, err.Error())
+		}
+	} else if f, ok := req.OrderAmount.(float64); ok {
+		orderAmount = f
+	} else {
+		s := fmt.Sprintf("OrderAmount err: %#v", req.OrderAmount)
+		logx.Errorf(s)
+		return errorz.New(response.API_INVALID_PARAMETER, s)
+	}
+
 	// 檢查簽名 TODO: 驗簽先拿掉
 	//checkSign := utils.VerifySign(req.Sign, req.ProxyPayOrderRequest, merchant.ScrectKey)
 	//if !checkSign {
@@ -486,7 +518,7 @@ func validateProxyParam(db *gorm.DB, req *types.ProxyPayRequestX, merchant *type
 	}
 
 	//8.验证交易金额(必填)
-	if req.OrderAmount <= 0 {
+	if orderAmount <= 0 {
 		logx.Error("金额错误", req.OrderAmount)
 		return errorz.New(response.INVALID_AMOUNT, "OrderAmount: "+fmt.Sprintln("%d", req.OrderAmount))
 	}
