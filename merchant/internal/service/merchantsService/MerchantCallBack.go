@@ -22,11 +22,13 @@ func PostCallbackToMerchant(db *gorm.DB, context *context.Context, orderX *types
 		return
 	}
 
+	status := changeOrderStatusToMerchant(orderX.Status)
+
 	ProxyPayCallBackMerRespVO := url.Values{}
 	ProxyPayCallBackMerRespVO.Set("MerchantId", orderX.MerchantCode)
 	ProxyPayCallBackMerRespVO.Set("OrderNo", orderX.MerchantOrderNo)
 	ProxyPayCallBackMerRespVO.Set("PayOrderNo", orderX.OrderNo)
-	ProxyPayCallBackMerRespVO.Set("OrderStatus", orderX.Status)
+	ProxyPayCallBackMerRespVO.Set("OrderStatus", status)
 	ProxyPayCallBackMerRespVO.Set("OrderAmount", strconv.FormatFloat(orderX.OrderAmount, 'f', 2, 64))
 	ProxyPayCallBackMerRespVO.Set("Fee", strconv.FormatFloat(orderX.Fee, 'f', 2, 64))
 	ProxyPayCallBackMerRespVO.Set("PayOrderTime", orderX.TransAt.Time().Format("200601021504"))
@@ -47,4 +49,22 @@ func PostCallbackToMerchant(db *gorm.DB, context *context.Context, orderX *types
 	}
 	logx.Infof("代付提单 %s ，回调商户請求參數 %#v，商戶返回: %#v", ProxyPayCallBackMerRespVO.Get("OrderNo"), ProxyPayCallBackMerRespVO, string(merResp.Body()))
 	return
+}
+
+func changeOrderStatusToMerchant(status string) string {
+	var changeStatus string
+
+	if status == "0" {
+		changeStatus = "0"
+	} else if status == "1" { //(0:待處理 1:處理中 2:交易中 20:成功 30:失敗 31:凍結)
+		changeStatus = "4"
+	} else if status == "2" {
+		changeStatus = "3"
+	} else if status == "20" {
+		changeStatus = "1"
+	} else if status == "30" || status == "31" {
+		changeStatus = "2"
+	}
+
+	return changeStatus
 }
