@@ -11,7 +11,7 @@ type PayOrderRequest struct {
 	JumpType      string `json:"jumpType, optional" validate:"max=12"`
 	LoginType     string `json:"loginType, optional" validate:"max=12"`
 	OrderNo       string `json:"orderNo, optional" validate:"required,max=40"`
-	OrderAmount   string `json:"orderAmount, optional" validate:"required"`
+	OrderAmount   string `json:"orderAmount, optional"`
 	Currency      string `json:"currency, optional" validate:"required"`
 	PayType       string `json:"payType, optional" validate:"required"`
 	OrderTime     string `json:"orderTime, optional" validate:"max=20"`
@@ -136,7 +136,7 @@ type ProxyPayOrderRequest struct {
 	BankCity     string  `json:"bankCity" validate: "required"`
 	BranchName   string  `json:"branchName, optional"`
 	BankNo       string  `json:"bankNo" valiate: "required"`
-	OrderAmount  float64 `json:"orderAmount" validate: "required"` //到小數兩位
+	OrderAmount  float64 `json:"orderAmount"` //到小數兩位
 	DefrayName   string  `json:"defrayName" validate: "required"`
 	DefrayId     string  `json:"defrayId, optional"`
 	DefrayMobile string  `json:"defrayMobile, optional"`

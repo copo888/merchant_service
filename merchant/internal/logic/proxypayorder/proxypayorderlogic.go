@@ -121,7 +121,7 @@ func (l *ProxyPayOrderLogic) internalProxyPayOrder(merReq *types.ProxyPayRequest
 	var proxyResp = types.ProxyPayOrderResponse{}
 	i18n.SetLang(language.English)
 	if errCHN != nil {
-		logx.Errorf("代付提單: %s ，渠道返回錯誤: %s, %#v", respOrder.OrderNo, errCHN.Error(), proxyPayRespVO)
+		logx.Errorf("代付提單: %s ，渠道返回錯誤: %s, %#v", respOrder.OrderNo, errCHN, proxyPayRespVO)
 		proxyResp.RespCode = response.CHANNEL_REPLY_ERROR
 		proxyResp.RespMsg = i18n.Sprintf(response.CHANNEL_REPLY_ERROR) + ": Code: " + proxyPayRespVO.Code + " Message: " + proxyPayRespVO.Message
 

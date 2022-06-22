@@ -109,6 +109,15 @@ func (l *PayOrderLogic) DoPayOrder(req types.PayOrderRequestX) (resp *types.PayO
 	var rpcRate transaction.CorrespondMerChnRate
 	copier.Copy(&rpcPayOrder, &req)
 	copier.Copy(&rpcRate, correspondMerChnRate)
+	if s, ok := req.OrderAmount.(string); ok {
+		rpcPayOrder.OrderAmount = s
+	} else if f, ok := req.OrderAmount.(float64); ok {
+		rpcPayOrder.OrderAmount = fmt.Sprintf("%f", f)
+	} else {
+		s := fmt.Sprintf("OrderAmount err: %#v", req.OrderAmount)
+		logx.Errorf(s)
+		return resp, errorz.New(response.API_INVALID_PARAMETER, s)
+	}
 	// CALL transactionc PayOrderTranaction
 	rpc := transactionclient.NewTransaction(l.svcCtx.RpcService("transaction.rpc"))
 	rpcResp, err2 := rpc.PayOrderTranaction(l.ctx, &transaction.PayOrderRequest{

@@ -258,6 +258,7 @@ type CalculateProfit struct {
 
 type PayOrderRequestX struct {
 	PayOrderRequest
+	OrderAmount  interface{} `json:"orderAmount, optional" validate:"required"`
 	MyIp string `json:"my_ip, optional"`
 }
 
@@ -273,6 +274,7 @@ type PayQueryBalanceRequestX struct {
 
 type ProxyPayRequestX struct {
 	ProxyPayOrderRequest
+	OrderAmount interface{} `json:"orderAmount" validate: "required"` //到小數兩位
 	Ip string `json:"ip, optional"`
 }
 

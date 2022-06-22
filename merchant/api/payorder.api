@@ -18,7 +18,7 @@ type PayOrderRequest {
     JumpType string `json:"jumpType, optional" validate:"max=12"`
     LoginType string `json:"loginType, optional" validate:"max=12"`
     OrderNo string `json:"orderNo, optional" validate:"required,max=40"`
-    OrderAmount string `json:"orderAmount, optional" validate:"required"`
+    OrderAmount string `json:"orderAmount, optional"`
     Currency string `json:"currency, optional" validate:"required"`
     PayType string `json:"payType, optional" validate:"required"`
     OrderTime string `json:"orderTime, optional" validate:"max=20"`
