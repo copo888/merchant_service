@@ -299,6 +299,7 @@ type OrderWithdrawCreateRequestX struct {
 	PageUrl         string `json:"page_url, optional"`
 	Source          string `json:"source, optional"`
 	Type            string `json:"type, optional"`
+	ChangeType      string `json:"change_type, optional"`
 }
 
 type OrderWithdrawCreateResponse struct {

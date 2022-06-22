@@ -1,26 +1,27 @@
-package proxypayorder
+package withdraworder
 
 import (
 	"com.copo/bo_service/common/response"
 	"com.copo/bo_service/common/utils"
-	"com.copo/bo_service/merchant/internal/logic/proxypayorder"
+	"com.copo/bo_service/merchant/internal/logic/withdraworder"
 	"com.copo/bo_service/merchant/internal/svc"
 	"com.copo/bo_service/merchant/internal/types"
 	"encoding/json"
+	"github.com/thinkeridea/go-extend/exnet"
 	"github.com/zeromicro/go-zero/rest/httpx"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"net/http"
 )
 
-func TestMerchantCallBackHandler(ctx *svc.ServiceContext) http.HandlerFunc {
+func WithdrawProxyPayApiQueryHandler(ctx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req types.MerchantCallBackReqeuest
+		var req types.ProxyPayOrderQueryRequestX
 
 		span := trace.SpanFromContext(r.Context())
 		defer span.End()
 
-		if err := httpx.ParseForm(r, &req); err != nil {
+		if err := httpx.ParseJsonBody(r, &req); err != nil {
 			response.Json(w, r, response.FAIL, nil, err)
 			return
 		}
@@ -30,6 +31,8 @@ func TestMerchantCallBackHandler(ctx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 
+		req.Ip = exnet.ClientIP(r)
+
 		if requestBytes, err := json.Marshal(req); err == nil {
 			span.SetAttributes(attribute.KeyValue{
 				Key:   "request",
@@ -37,8 +40,8 @@ func TestMerchantCallBackHandler(ctx *svc.ServiceContext) http.HandlerFunc {
 			})
 		}
 
-		l := proxypayorder.NewTestMerchantCallBackLogic(r.Context(), ctx)
-		resp, err := l.TestMerchantCallBack(&req)
+		l := withdraworder.NewWithdrawProxyPayApiQueryLogic(r.Context(), ctx)
+		resp, err := l.WithdrawProxyPayApiQuery(&req)
 		if err != nil {
 			response.Json(w, r, err.Error(), nil, err)
 		} else {

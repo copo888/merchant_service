@@ -78,6 +78,7 @@ func WithdrawOrderCreate(db *gorm.DB, req []types.OrderWithdrawCreateRequestX, o
 		MerchantOrderNo: order.MerchantOrderNo,
 		NotifyUrl: order.NotifyUrl,
 		PageUrl: order.PageUrl,
+		ChangeType: order.ChangeType,
 	})
 
 	if errRpc != nil {

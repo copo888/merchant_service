@@ -74,4 +74,10 @@ service merchant-api {
 
     @handler WithdrawApiTestCallBackHandler
     post /withdraw-test-callback () returns (string)
+
+    @handler WithdrawProxyPayApiOrderHandler
+    post /withdraw-order-by-proxy (ProxyPayOrderRequest) returns (WithdrawApiOrderResponse)
+
+    @handler WithdrawProxyPayApiQueryHandler
+    post /withdraw-query-by-proxy (ProxyPayOrderQueryRequest) returns (WithdrawApiQueryResponse)
 }
