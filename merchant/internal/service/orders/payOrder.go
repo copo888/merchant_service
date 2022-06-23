@@ -50,11 +50,12 @@ func VerifyPayOrder(db *gorm.DB, req types.PayOrderRequestX, merchant *types.Mer
 }
 
 func CallChannelForPay(db *gorm.DB, req types.PayOrderRequestX, merchant *types.Merchant, orderNo string, ctx context.Context, svcCtx *svc.ServiceContext) (payReplyVO *vo.PayReplyVO, correspondMerChnRate *types.CorrespondMerChnRate, err error) {
-    orderAmount := ""
+	orderAmount := ""
 	if s, ok := req.OrderAmount.(string); ok {
 		orderAmount = s
 	} else if f, ok := req.OrderAmount.(float64); ok {
-		orderAmount = fmt.Sprintf("%.2f", f)
+		precise := utils.GetDecimalPlaces(f)
+		orderAmount = strconv.FormatFloat(f, 'f', precise, 64)
 	} else {
 		s := fmt.Sprintf("OrderAmount err: %#v", req.OrderAmount)
 		logx.Errorf(s)

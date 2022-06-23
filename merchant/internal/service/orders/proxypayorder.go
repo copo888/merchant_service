@@ -151,11 +151,14 @@ func CallChannel_ProxyOrder(context *context.Context, config *config.Config, mer
 
 	span := trace.SpanFromContext(*context)
 
+	precise := utils.GetDecimalPlaces(respOrder.OrderAmount)
+	valTrans := strconv.FormatFloat(respOrder.OrderAmount, 'f', precise, 64)
+
 	// 新增请求代付请求app 物件 ProxyPayBO
 	ProxyPayBO := bo.ProxyPayBO{
 		OrderNo:              respOrder.OrderNo,
 		TransactionType:      constants.TRANS_TYPE_PROXY_PAY,
-		TransactionAmount:    fmt.Sprintf("%f", respOrder.OrderAmount),
+		TransactionAmount:    valTrans,
 		ReceiptAccountNumber: respOrder.MerchantBankNo,
 		ReceiptAccountName:   respOrder.MerchantAccountName,
 		ReceiptCardProvince:  respOrder.MerchantBankProvince,

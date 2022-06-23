@@ -112,7 +112,8 @@ func CovertToMap(req interface{}) map[string]string {
 		name := parts[0]
 		if name != "sign" {
 			if val.Field(i).Type().Name() == "float64" {
-				valTrans := strconv.FormatFloat(val.Field(i).Float(), 'f', 2, 64)
+				precise := GetDecimalPlaces(val.Field(i).Float())
+				valTrans := strconv.FormatFloat(val.Field(i).Float(), 'f', precise, 64)
 				m[name] = valTrans
 			} else if val.Field(i).Type().Name() == "string" {
 				m[name] = val.Field(i).String()
@@ -196,4 +197,13 @@ func PKCS5UnPadding(origData []byte) []byte {
 	length := len(origData)
 	unpadding := int(origData[length-1])
 	return origData[:(length - unpadding)]
+}
+
+func GetDecimalPlaces(f float64) int {
+	numstr := fmt.Sprint(f)
+	tmp := strings.Split(numstr, ".")
+	if len(tmp) <= 1 {
+		return 0
+	}
+	return len(tmp[1])
 }
