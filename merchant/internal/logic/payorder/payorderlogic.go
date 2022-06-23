@@ -62,6 +62,17 @@ func (l *PayOrderLogic) PayOrder(req types.PayOrderRequestX) (resp *types.PayOrd
 func (l *PayOrderLogic) DoPayOrder(req types.PayOrderRequestX) (resp *types.PayOrderResponse, err error) {
 
 	var merchant *types.Merchant
+	var orderAmount string
+	if s, ok := req.OrderAmount.(string); ok {
+		orderAmount = s
+	} else if f, ok := req.OrderAmount.(float64); ok {
+		precise := utils.GetDecimalPlaces(f)
+		orderAmount = strconv.FormatFloat(f, 'f', precise, 64)
+	} else {
+		s := fmt.Sprintf("OrderAmount err: %#v", req.OrderAmount)
+		logx.Errorf(s)
+		return resp, errorz.New(response.API_INVALID_PARAMETER, s)
+	}
 
 	// 取得商戶
 	if err = l.svcCtx.MyDB.Table("mc_merchants").
@@ -75,11 +86,13 @@ func (l *PayOrderLogic) DoPayOrder(req types.PayOrderRequestX) (resp *types.PayO
 		}
 	}
 
+
 	// 檢查白名單
 	if isWhite := merchantsService.IPChecker(req.MyIp, merchant.ApiIP); !isWhite {
 		return nil, errorz.New(response.IP_DENIED, "IP: "+req.MyIp)
 	}
 
+	req.PayOrderRequest.OrderAmount = orderAmount
 	// 檢查驗簽 TODO: 驗簽先拿掉
 	if isSameSign := utils.VerifySign(req.Sign, req.PayOrderRequest, merchant.ScrectKey); !isSameSign {
 		return nil, errorz.New(response.INVALID_SIGN)
@@ -110,16 +123,8 @@ func (l *PayOrderLogic) DoPayOrder(req types.PayOrderRequestX) (resp *types.PayO
 	var rpcRate transaction.CorrespondMerChnRate
 	copier.Copy(&rpcPayOrder, &req)
 	copier.Copy(&rpcRate, correspondMerChnRate)
-	if s, ok := req.OrderAmount.(string); ok {
-		rpcPayOrder.OrderAmount = s
-	} else if f, ok := req.OrderAmount.(float64); ok {
-		precise := utils.GetDecimalPlaces(f)
-		rpcPayOrder.OrderAmount = strconv.FormatFloat(f, 'f', precise, 64)
-	} else {
-		s := fmt.Sprintf("OrderAmount err: %#v", req.OrderAmount)
-		logx.Errorf(s)
-		return resp, errorz.New(response.API_INVALID_PARAMETER, s)
-	}
+	rpcPayOrder.OrderAmount = orderAmount
+	
 	// CALL transactionc PayOrderTranaction
 	rpc := transactionclient.NewTransaction(l.svcCtx.RpcService("transaction.rpc"))
 	rpcResp, err2 := rpc.PayOrderTranaction(l.ctx, &transaction.PayOrderRequest{
