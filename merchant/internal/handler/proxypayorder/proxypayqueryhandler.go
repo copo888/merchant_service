@@ -45,9 +45,9 @@ func ProxyPayQueryHandler(ctx *svc.ServiceContext) http.HandlerFunc {
 		l := proxypayorder.NewProxyPayQueryLogic(r.Context(), ctx)
 		resp, err := l.ProxyPayQuery(&req)
 		if err != nil {
-			response.Json(w, r, err.Error(), nil, err)
+			response.ApiErrorJson(w, r, err.Error(), err)
 		} else {
-			response.Json(w, r, response.SUCCESS, resp, err)
+			response.ApiJson(w, r, resp)
 		}
 	}
 }

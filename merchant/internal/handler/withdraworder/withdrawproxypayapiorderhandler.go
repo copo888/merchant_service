@@ -21,7 +21,7 @@ func WithdrawProxyPayApiOrderHandler(ctx *svc.ServiceContext) http.HandlerFunc {
 		span := trace.SpanFromContext(r.Context())
 		defer span.End()
 		bodyBytes, err := io.ReadAll(r.Body)
-		if  err != nil {
+		if err != nil {
 			response.Json(w, r, response.FAIL, nil, err)
 			return
 		}
@@ -49,9 +49,9 @@ func WithdrawProxyPayApiOrderHandler(ctx *svc.ServiceContext) http.HandlerFunc {
 		l := withdraworder.NewWithdrawProxyPayApiOrderLogic(r.Context(), ctx)
 		resp, err := l.WithdrawProxyPayApiOrder(&req)
 		if err != nil {
-			response.Json(w, r, err.Error(), nil, err)
+			response.ApiErrorJson(w, r, err.Error(), err)
 		} else {
-			response.Json(w, r, response.SUCCESS, resp, err)
+			response.ApiJson(w, r, resp)
 		}
 	}
 }
