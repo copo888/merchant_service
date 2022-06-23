@@ -470,6 +470,7 @@ func validateProxyParam(db *gorm.DB, req *types.ProxyPayRequestX, merchant *type
 		logx.Errorf(s)
 		return errorz.New(response.API_INVALID_PARAMETER, s)
 	}
+	req.ProxyPayOrderRequest.OrderAmount = orderAmount
 
 	// 檢查簽名
 	checkSign := utils.VerifySign(req.Sign, req.ProxyPayOrderRequest, merchant.ScrectKey)
