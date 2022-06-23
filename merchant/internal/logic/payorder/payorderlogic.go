@@ -16,6 +16,7 @@ import (
 	"github.com/jinzhu/copier"
 	"github.com/neccoys/go-zero-extension/redislock"
 	"golang.org/x/text/language"
+	"strconv"
 	"time"
 
 	"context"
@@ -112,7 +113,8 @@ func (l *PayOrderLogic) DoPayOrder(req types.PayOrderRequestX) (resp *types.PayO
 	if s, ok := req.OrderAmount.(string); ok {
 		rpcPayOrder.OrderAmount = s
 	} else if f, ok := req.OrderAmount.(float64); ok {
-		rpcPayOrder.OrderAmount = fmt.Sprintf("%.2f", f)
+		precise := utils.GetDecimalPlaces(f)
+		rpcPayOrder.OrderAmount = strconv.FormatFloat(f, 'f', precise, 64)
 	} else {
 		s := fmt.Sprintf("OrderAmount err: %#v", req.OrderAmount)
 		logx.Errorf(s)
