@@ -44,9 +44,9 @@ func WithdrawApiQueryHandler(ctx *svc.ServiceContext) http.HandlerFunc {
 		l := withdraworder.NewWithdrawApiQueryLogic(r.Context(), ctx)
 		resp, err := l.WithdrawApiQuery(&req)
 		if err != nil {
-			response.Json(w, r, err.Error(), nil, err)
+			response.ApiErrorJson(w, r, err.Error(), err)
 		} else {
-			response.Json(w, r, response.SUCCESS, resp, err)
+			response.ApiJson(w, r, resp)
 		}
 	}
 }

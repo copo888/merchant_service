@@ -43,9 +43,9 @@ func WithdrawProxyPayApiQueryHandler(ctx *svc.ServiceContext) http.HandlerFunc {
 		l := withdraworder.NewWithdrawProxyPayApiQueryLogic(r.Context(), ctx)
 		resp, err := l.WithdrawProxyPayApiQuery(&req)
 		if err != nil {
-			response.Json(w, r, err.Error(), nil, err)
+			response.ApiErrorJson(w, r, err.Error(), err)
 		} else {
-			response.Json(w, r, response.SUCCESS, resp, err)
+			response.ApiJson(w, r, resp)
 		}
 	}
 }
