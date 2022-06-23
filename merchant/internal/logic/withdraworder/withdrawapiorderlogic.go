@@ -66,13 +66,13 @@ func (l *WithdrawApiOrderLogic) WithdrawApiOrder(req *types.WithdrawApiOrderRequ
 		}
 
 		if isWhite := merchantsService.IPChecker(req.MyIp, merchant.ApiIP); !isWhite {
-			logx.Error("白名單檢查錯誤: ", err.Error())
+			logx.Error("白名單檢查錯誤: ", req.MyIp)
 			return nil, errorz.New(response.API_IP_DENIED, "IP: "+req.MyIp)
 		}
 
 		// 驗簽檢查
 		if isSameSign := utils.VerifySign(req.Sign, req.WithdrawApiOrderRequest, merchant.ScrectKey); !isSameSign {
-			logx.Error("驗簽檢查錯誤: ", err.Error())
+			logx.Error("驗簽檢查錯誤: ", req.Sign)
 			return nil, errorz.New(response.INVALID_SIGN)
 		}
 
@@ -90,7 +90,7 @@ func (l *WithdrawApiOrderLogic) WithdrawApiOrder(req *types.WithdrawApiOrderRequ
 			return nil, errorz.New(response.GENERAL_EXCEPTION)
 		}
 		if isExist {
-			logx.Error("訂單號重複錯誤: ", err.Error())
+			logx.Error("訂單號重複錯誤: ", req.OrderNo)
 			return nil, errorz.New(response.REPEAT_ORDER_NO)
 		}
 
