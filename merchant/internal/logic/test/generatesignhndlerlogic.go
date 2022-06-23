@@ -7,8 +7,10 @@ import (
 	"com.copo/bo_service/merchant/internal/types"
 	"context"
 	"errors"
+	"fmt"
 	"gorm.io/gorm"
 	"strconv"
+	"strings"
 
 	"com.copo/bo_service/merchant/internal/svc"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -37,12 +39,14 @@ func (l *GenerateSignHndlerLogic) GenerateSignHndler(req map[string]interface{})
 			continue
 		}
 		if f, ok := val.(float64); ok {
-			valTrans := strconv.FormatFloat(f, 'f', 2, 64)
+			places := getDecimalPlaces(f)
+			valTrans := strconv.FormatFloat(f, 'f', places, 64)
 			m[key] = valTrans
 		} else if s, ok := val.(string); ok {
 			m[key] = s
 		}
 	}
+
 
 	// 取得商戶
 	if err = l.svcCtx.MyDB.Table("mc_merchants").
@@ -60,5 +64,16 @@ func (l *GenerateSignHndlerLogic) GenerateSignHndler(req map[string]interface{})
 
 	source := utils.JoinStringsInASCII(m, "&", false, false, merchant.ScrectKey)
 	resp = utils.GetSign(source)
+	logx.Infof("source %s", source)
+	logx.Infof("sign %s", resp)
 	return
+}
+
+func getDecimalPlaces(f float64) int {
+	numstr := fmt.Sprint(f)
+	tmp := strings.Split(numstr, ".")
+	if len(tmp) <= 1 {
+		return 0
+	}
+	return len(tmp[1])
 }
