@@ -54,7 +54,7 @@ func CallChannelForPay(db *gorm.DB, req types.PayOrderRequestX, merchant *types.
 	if s, ok := req.OrderAmount.(string); ok {
 		orderAmount = s
 	} else if f, ok := req.OrderAmount.(float64); ok {
-		orderAmount = fmt.Sprintf("%f", f)
+		orderAmount = fmt.Sprintf("%.2f", f)
 	} else {
 		s := fmt.Sprintf("OrderAmount err: %#v", req.OrderAmount)
 		logx.Errorf(s)
@@ -106,12 +106,18 @@ func CallChannelForPay(db *gorm.DB, req types.PayOrderRequestX, merchant *types.
 	span := trace.SpanFromContext(ctx)
 	payKey, errk := utils.MicroServiceEncrypt(svcCtx.Config.ApiKey.PayKey, svcCtx.Config.ApiKey.PublicKey)
 	if errk != nil {
+		logx.Errorf("MicroServiceEncrypt: %s", err.Error())
 		return nil, nil, errorz.New(response.GENERAL_EXCEPTION, err.Error())
 	}
 
 	url := fmt.Sprintf("%s:%s/api/pay", svcCtx.Config.Server, correspondMerChnRate.ChannelPort)
 	res, errx := gozzle.Post(url).Timeout(10).Trace(span).Header("authenticationPaykey", payKey).JSON(payBO)
+	if res != nil {
+		logx.Info("response Status:", res.Status())
+		logx.Info("response Body:", string(res.Body()))
+	}
 	if errx != nil {
+		logx.Errorf("call Channel cha: %s", errx.Error())
 		return nil, nil, errorz.New(response.GENERAL_EXCEPTION, errx.Error())
 	} else if res.Status() != 200 {
 		return nil, nil, errorz.New(response.INVALID_STATUS_CODE, fmt.Sprintf("call channelApp httpStatus:%d", res.Status()))

@@ -468,11 +468,11 @@ func validateProxyParam(db *gorm.DB, req *types.ProxyPayRequestX, merchant *type
 		return errorz.New(response.API_INVALID_PARAMETER, s)
 	}
 
-	// 檢查簽名 TODO: 驗簽先拿掉
-	//checkSign := utils.VerifySign(req.Sign, req.ProxyPayOrderRequest, merchant.ScrectKey)
-	//if !checkSign {
-	//	return errorz.New(response.INVALID_SIGN)
-	//}
+	// 檢查簽名
+	checkSign := utils.VerifySign(req.Sign, req.ProxyPayOrderRequest, merchant.ScrectKey)
+	if !checkSign {
+		return errorz.New(response.INVALID_SIGN)
+	}
 	// 檢查新增USDT 钱包地址判断 协定固定 USDT-TRC20
 	if req.Currency == "USDT" {
 		if isMatch, _ := regexp.MatchString(constants.REGEXP_WALLET_TRC, req.BankNo); !isMatch {

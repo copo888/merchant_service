@@ -80,9 +80,9 @@ func (l *PayOrderLogic) DoPayOrder(req types.PayOrderRequestX) (resp *types.PayO
 	}
 
 	// 檢查驗簽 TODO: 驗簽先拿掉
-	//if isSameSign := utils.VerifySign(req.Sign, req.PayOrderRequest, merchant.ScrectKey); !isSameSign {
-	//	return nil, errorz.New(response.INVALID_SIGN)
-	//}
+	if isSameSign := utils.VerifySign(req.Sign, req.PayOrderRequest, merchant.ScrectKey); !isSameSign {
+		return nil, errorz.New(response.INVALID_SIGN)
+	}
 
 	// 资料验证
 	if err = ordersService.VerifyPayOrder(l.svcCtx.MyDB, req, merchant); err != nil {
@@ -112,7 +112,7 @@ func (l *PayOrderLogic) DoPayOrder(req types.PayOrderRequestX) (resp *types.PayO
 	if s, ok := req.OrderAmount.(string); ok {
 		rpcPayOrder.OrderAmount = s
 	} else if f, ok := req.OrderAmount.(float64); ok {
-		rpcPayOrder.OrderAmount = fmt.Sprintf("%f", f)
+		rpcPayOrder.OrderAmount = fmt.Sprintf("%.2f", f)
 	} else {
 		s := fmt.Sprintf("OrderAmount err: %#v", req.OrderAmount)
 		logx.Errorf(s)
@@ -127,10 +127,13 @@ func (l *PayOrderLogic) DoPayOrder(req types.PayOrderRequestX) (resp *types.PayO
 		ChannelOrderNo: payReplyVO.ChannelOrderNo,
 	})
 	if err2 != nil {
+		logx.Errorf("PayOrderTranaction rpcResp error:%s", err2.Error())
 		return nil, err2
 	} else if rpcResp == nil {
+		logx.Errorf("Code:%s, Message:%s", rpcResp.Code, rpcResp.Message)
 		return nil, errorz.New(response.SERVICE_RESPONSE_DATA_ERROR, "PayOrderTranaction rpcResp is nil")
 	} else if rpcResp.Code != response.API_SUCCESS {
+		logx.Errorf("Code:%s, Message:%s", rpcResp.Code, rpcResp.Message)
 		return nil, errorz.New(rpcResp.Code, rpcResp.Message)
 	}
 
@@ -155,7 +158,7 @@ func (l *PayOrderLogic) RequireUserIdPage(req types.PayOrderRequestX, orderNo st
 		return nil, errorz.New(response.API_PARAMETER_TYPE_ERROE)
 	}
 	// 存 Redis
-	if err = l.svcCtx.RedisClient.Set(l.ctx, redisKey.CACHE_ORDER_DATA + orderNo, dataJson, 30 * time.Minute).Err(); err != nil {
+	if err = l.svcCtx.RedisClient.Set(l.ctx, redisKey.CACHE_ORDER_DATA+orderNo, dataJson, 30*time.Minute).Err(); err != nil {
 		return nil, errorz.New(response.GENERAL_EXCEPTION)
 	}
 
