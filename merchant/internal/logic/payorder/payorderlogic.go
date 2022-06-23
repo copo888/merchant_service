@@ -80,9 +80,9 @@ func (l *PayOrderLogic) DoPayOrder(req types.PayOrderRequestX) (resp *types.PayO
 	}
 
 	// 檢查驗簽 TODO: 驗簽先拿掉
-	//if isSameSign := utils.VerifySign(req.Sign, req.PayOrderRequest, merchant.ScrectKey); !isSameSign {
-	//	return nil, errorz.New(response.INVALID_SIGN)
-	//}
+	if isSameSign := utils.VerifySign(req.Sign, req.PayOrderRequest, merchant.ScrectKey); !isSameSign {
+		return nil, errorz.New(response.INVALID_SIGN)
+	}
 
 	// 资料验证
 	if err = ordersService.VerifyPayOrder(l.svcCtx.MyDB, req, merchant); err != nil {
@@ -158,7 +158,7 @@ func (l *PayOrderLogic) RequireUserIdPage(req types.PayOrderRequestX, orderNo st
 		return nil, errorz.New(response.API_PARAMETER_TYPE_ERROE)
 	}
 	// 存 Redis
-	if err = l.svcCtx.RedisClient.Set(l.ctx, redisKey.CACHE_ORDER_DATA + orderNo, dataJson, 30 * time.Minute).Err(); err != nil {
+	if err = l.svcCtx.RedisClient.Set(l.ctx, redisKey.CACHE_ORDER_DATA+orderNo, dataJson, 30*time.Minute).Err(); err != nil {
 		return nil, errorz.New(response.GENERAL_EXCEPTION)
 	}
 
