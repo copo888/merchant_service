@@ -3,6 +3,7 @@ package merchantsService
 import (
 	"com.copo/bo_service/merchant/internal/types"
 	"context"
+	"github.com/copo888/transaction_service/common/utils"
 	"github.com/gioco-play/gozzle"
 	"github.com/zeromicro/go-zero/core/logx"
 	"go.opentelemetry.io/otel/trace"
@@ -32,8 +33,8 @@ func PostCallbackToMerchant(db *gorm.DB, context *context.Context, orderX *types
 	ProxyPayCallBackMerRespVO.Set("OrderAmount", strconv.FormatFloat(orderX.OrderAmount, 'f', 2, 64))
 	ProxyPayCallBackMerRespVO.Set("Fee", strconv.FormatFloat(orderX.Fee, 'f', 2, 64))
 	ProxyPayCallBackMerRespVO.Set("PayOrderTime", orderX.TransAt.Time().Format("200601021504"))
-	//sign := utils.SortAndSign2(ProxyPayCallBackMerRespVO,merchant.ScrectKey)
-	ProxyPayCallBackMerRespVO.Set("Sign", "djiocpnvpqnpcnvpqn")
+	sign := utils.SortAndSign2(ProxyPayCallBackMerRespVO, merchant.ScrectKey)
+	ProxyPayCallBackMerRespVO.Set("Sign", sign)
 	logx.Infof("代付提单 %s ，回调商户URL= %s，回调资讯= %#v", orderX.OrderNo, orderX.NotifyUrl, ProxyPayCallBackMerRespVO)
 
 	//TODO retry post for 10 times and 2s between each reqeuest

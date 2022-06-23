@@ -107,12 +107,12 @@ func (l *WithdrawProxyPayApiOrderLogic) WithdrawProxyPayApiOrder(req *types.Prox
 			RespData: respData,
 		}
 		return resp, nil
-	}else {
+	} else {
 		return nil, errorz.New(response.API_GENERAL_ERROR)
 	}
 }
 
-func (l *WithdrawProxyPayApiOrderLogic) checkParams (db *gorm.DB,req *types.ProxyPayRequestX, merchant types.Merchant) ( b bool, err error){
+func (l *WithdrawProxyPayApiOrderLogic) checkParams(db *gorm.DB, req *types.ProxyPayRequestX, merchant types.Merchant) (b bool, err error) {
 	var merchantCurrency *types.MerchantCurrency
 	// 检查币别
 	if err = db.Table("mc_merchant_currencies").Where("merchant_code = ? AND currency_code = ?", req.MerchantId, req.Currency).
@@ -129,6 +129,21 @@ func (l *WithdrawProxyPayApiOrderLogic) checkParams (db *gorm.DB,req *types.Prox
 		return false, errorz.New(response.API_IP_DENIED, "IP: "+req.Ip)
 	}
 
+	var orderAmount float64
+	if s, ok := req.OrderAmount.(string); ok {
+		if s, err := strconv.ParseFloat(s, 64); err == nil {
+			orderAmount = s
+		} else {
+			return false, errorz.New(response.API_INVALID_PARAMETER, err.Error())
+		}
+	} else if f, ok := req.OrderAmount.(float64); ok {
+		orderAmount = f
+	} else {
+		s := fmt.Sprintf("OrderAmount err: %#v", req.OrderAmount)
+		logx.Errorf(s)
+		return false, errorz.New(response.API_INVALID_PARAMETER, s)
+	}
+	req.ProxyPayOrderRequest.OrderAmount = orderAmount
 	// 驗簽檢查
 	checkSign := utils.VerifySign(req.Sign, req.ProxyPayOrderRequest, merchant.ScrectKey)
 	if !checkSign {
