@@ -274,6 +274,19 @@ func (l *OrdersService) internalChannelCallBackForProxy(req *types.ProxyPayOrder
 		logx.Infof("代付订单：%s，人工处里状态为：%s，判定已进入人工处里阶段，不接受回调变更。", orderX.OrderNo, orderX.PersonProcessStatus)
 		//TODO 是否有需要回寫代付歷程?
 		return errorz.New(response.PROXY_PAY_IS_PERSON_PROCESS, "提单目前为人工处里阶段，不可回调变更")
+	} else if req.Amount != orderX.OrderAmount {
+		//代付回调金额若不等于订单金额，订单转 人工处理，并塞error_message
+		logx.Errorf("代付回调金额不等于订单金额，订单转人工处理。单号:%s", orderX.OrderNo)
+		orderX.ErrorNote = "代付渠道回调金额不等于订单金额"
+		orderX.ErrorType = "1"
+		orderX.PersonProcessStatus = constants.PERSON_PROCESS_WAIT_CHANGE
+		orderX.RepaymentStatus = constants.REPAYMENT_WAIT
+
+		if errUpdate := l.svcCtx.MyDB.Table("tx_orders").Updates(orderX).Error; errUpdate != nil {
+			logx.Error("代付订单更新状态错误: ", errUpdate.Error())
+		}
+
+		return errorz.New(response.PROXY_PAY_AMOUNT_INVALID, "代付回调金额与订单金额不符")
 	}
 	/*更新訂單:
 	1. 訂單狀態(依渠道回調決定)
@@ -290,11 +303,6 @@ func (l *OrdersService) internalChannelCallBackForProxy(req *types.ProxyPayOrder
 			orderX.ErrorNote = "渠道回调: 交易失败"
 		}
 	}
-	//是否以回調給商戶
-	if orderX.IsMerchantCallback == constants.MERCHANT_CALL_BACK_NO {
-		orderX.IsMerchantCallback = constants.MERCHANT_CALL_BACK_YES
-		orderX.MerchantCallBackAt = time.Now().UTC()
-	}
 
 	orderX.UpdatedBy = req.UpdatedBy
 	orderX.UpdatedAt = time.Now().UTC()
@@ -307,11 +315,6 @@ func (l *OrdersService) internalChannelCallBackForProxy(req *types.ProxyPayOrder
 	}
 	if req.ChannelCharge != 0 {
 		//渠道有回傳渠道手續費
-	}
-
-	//代付回调金额若不等于订单金额，订单转 人工处理，并塞error_message
-	if req.Amount != orderX.OrderAmount {
-
 	}
 
 	// 更新订单
@@ -362,23 +365,29 @@ func (l *OrdersService) internalChannelCallBackForProxy(req *types.ProxyPayOrder
 				orderX.RepaymentStatus = constants.REPAYMENT_SUCCESS
 				//TODO 收支紀錄
 			}
-
-			// 更新订单
-			if errUpdate := l.svcCtx.MyDB.Table("tx_orders").Updates(orderX).Error; errUpdate != nil {
-				logx.Error("代付订单更新状态错误: ", errUpdate.Error())
-			}
 		}
-		//TODO 是否有需還款成功才回調給商戶?
-		//若訂單單來源為API且尚未回調給商戶，進行回調給商戶
-		if orderX.Source == constants.API && orderX.IsMerchantCallback == constants.IS_MERCHANT_CALLBACK_NO {
-			logx.Infof("代付订单回调状态为[失敗]，主动回调API订单：%s=======================================>", orderX.OrderNo)
-			if errPoseMer := merchantsService.PostCallbackToMerchant(l.svcCtx.MyDB, &l.ctx, orderX); errPoseMer != nil {
-				//不拋錯
-				logx.Error("回調商戶錯誤:", errPoseMer)
-			}
-		}
-
 	} //  ==========渠道回調失敗=========END
+
+	//TODO 是否有需還款成功才回調給商戶?
+	//若訂單單來源為API且尚未回調給商戶，進行回調給商戶
+	if orderX.Source == constants.API && orderX.IsMerchantCallback == constants.IS_MERCHANT_CALLBACK_NO {
+		logx.Infof("代付订单回调状态为[失敗]，主动回调API订单：%s=======================================>", orderX.OrderNo)
+		if errPoseMer := merchantsService.PostCallbackToMerchant(l.svcCtx.MyDB, &l.ctx, orderX); errPoseMer != nil {
+			//不拋錯
+			logx.Error("回調商戶錯誤:", errPoseMer)
+		} else {
+			//更改回調商戶状态
+			if orderX.IsMerchantCallback == constants.MERCHANT_CALL_BACK_NO {
+				orderX.IsMerchantCallback = constants.MERCHANT_CALL_BACK_YES
+				orderX.MerchantCallBackAt = time.Now().UTC()
+			}
+		}
+	}
+
+	// 更新订单
+	if errUpdate := l.svcCtx.MyDB.Table("tx_orders").Updates(orderX).Error; errUpdate != nil {
+		logx.Error("代付订单更新状态错误: ", errUpdate.Error())
+	}
 
 	return nil
 }

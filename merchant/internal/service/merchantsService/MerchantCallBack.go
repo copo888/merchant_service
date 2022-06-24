@@ -1,14 +1,14 @@
 package merchantsService
 
 import (
+	utils2 "com.copo/bo_service/common/utils"
 	"com.copo/bo_service/merchant/internal/types"
 	"context"
+	"fmt"
 	"github.com/gioco-play/gozzle"
 	"github.com/zeromicro/go-zero/core/logx"
 	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
-	"net/url"
-	"strconv"
 )
 
 /*
@@ -22,32 +22,61 @@ func PostCallbackToMerchant(db *gorm.DB, context *context.Context, orderX *types
 		return
 	}
 
+	//precise := utils2.GetDecimalPlaces(orderX.OrderAmount)
+	//valTrans := strconv.FormatFloat(orderX.OrderAmount, 'f', precise, 64)
+	//
+	//precise2 := utils2.GetDecimalPlaces(orderX.Fee)
+	//valTrans2 := strconv.FormatFloat(orderX.Fee, 'f', precise2, 64)
+
 	status := changeOrderStatusToMerchant(orderX.Status)
 
-	ProxyPayCallBackMerRespVO := url.Values{}
-	ProxyPayCallBackMerRespVO.Set("MerchantId", orderX.MerchantCode)
-	ProxyPayCallBackMerRespVO.Set("OrderNo", orderX.MerchantOrderNo)
-	ProxyPayCallBackMerRespVO.Set("PayOrderNo", orderX.OrderNo)
-	ProxyPayCallBackMerRespVO.Set("OrderStatus", status)
-	ProxyPayCallBackMerRespVO.Set("OrderAmount", strconv.FormatFloat(orderX.OrderAmount, 'f', 2, 64))
-	ProxyPayCallBackMerRespVO.Set("Fee", strconv.FormatFloat(orderX.Fee, 'f', 2, 64))
-	ProxyPayCallBackMerRespVO.Set("PayOrderTime", orderX.TransAt.Time().Format("200601021504"))
-	//sign := utils.SortAndSign2(ProxyPayCallBackMerRespVO,merchant.ScrectKey)
-	ProxyPayCallBackMerRespVO.Set("Sign", "djiocpnvpqnpcnvpqn")
+	//ProxyPayCallBackMerRespVO := url.Values{}
+	//ProxyPayCallBackMerRespVO.Set("MerchantId", orderX.MerchantCode)
+	//ProxyPayCallBackMerRespVO.Set("OrderNo", orderX.MerchantOrderNo)
+	//ProxyPayCallBackMerRespVO.Set("PayOrderNo", orderX.OrderNo)
+	//ProxyPayCallBackMerRespVO.Set("OrderStatus", status)
+	//ProxyPayCallBackMerRespVO.Set("OrderAmount", fmt.Sprintf("%.2f", orderX.OrderAmount))
+	//ProxyPayCallBackMerRespVO.Set("Fee", fmt.Sprintf("%.2f", orderX.Fee))
+	//ProxyPayCallBackMerRespVO.Set("PayOrderTime", orderX.TransAt.Time().Format("200601021504"))
+	ProxyPayCallBackMerRespVO := struct {
+		MerchantId   string `json:"merchantId"`
+		OrderNo      string `json:"orderNo"`
+		PayOrderNo   string `json:"payOrderNo"`
+		OrderStatus  string `json:"orderStatus"`
+		OrderAmount  string `json:"orderAmount"`
+		Fee          string `json:"fee"`
+		PayOrderTime string `json:"payOrderTime"`
+		Sign         string `json:"sign"`
+	}{}
+	ProxyPayCallBackMerRespVO.MerchantId = orderX.MerchantCode
+	ProxyPayCallBackMerRespVO.OrderNo = orderX.MerchantOrderNo
+	ProxyPayCallBackMerRespVO.PayOrderNo = orderX.OrderNo
+	ProxyPayCallBackMerRespVO.OrderStatus = status
+	ProxyPayCallBackMerRespVO.OrderAmount = fmt.Sprintf("%.2f", orderX.OrderAmount)
+	ProxyPayCallBackMerRespVO.Fee = fmt.Sprintf("%.2f", orderX.Fee)
+	ProxyPayCallBackMerRespVO.PayOrderTime = orderX.TransAt.Time().Format("200601021504")
+	// Convert map to json string
+
+	if err != nil {
+		logx.Info(err.Error())
+	}
+	sign := utils2.SortAndSign2(ProxyPayCallBackMerRespVO, merchant.ScrectKey)
+	ProxyPayCallBackMerRespVO.Sign = sign
+	//ProxyPayCallBackMerRespVO.Set("Sign", sign)
 	logx.Infof("代付提单 %s ，回调商户URL= %s，回调资讯= %#v", orderX.OrderNo, orderX.NotifyUrl, ProxyPayCallBackMerRespVO)
 
 	//TODO retry post for 10 times and 2s between each reqeuest
 	//TODO 內部測試，測完需移除
-	merResp, merCallBackErr := gozzle.Post("http://172.16.204.115:8083/dior/merchant-api/merchant-call-back").Timeout(10).Trace(span).Form(ProxyPayCallBackMerRespVO)
-	//merResp, merCallBackErr := gozzle.Post(orderX.NotifyUrl).Timeout(10).Trace(span).Form(ProxyPayCallBackMerRespVO)
+	//merResp, merCallBackErr := gozzle.Post("http://172.16.204.115:8083/dior/merchant-api/merchant-call-back").Timeout(10).Trace(span).Form(ProxyPayCallBackMerRespVO)
+	merResp, merCallBackErr := gozzle.Post(orderX.NotifyUrl).Timeout(10).Trace(span).JSON(ProxyPayCallBackMerRespVO)
 	if merCallBackErr != nil || merResp.Status() != 200 {
 		if merCallBackErr != nil {
-			logx.Errorf("代付提单%s 回调商户异常，錯誤: %#v", ProxyPayCallBackMerRespVO.Get("OrderNo"), merCallBackErr)
+			logx.Errorf("代付提单%s 回调商户异常，錯誤: %#v", ProxyPayCallBackMerRespVO.OrderNo, merCallBackErr)
 		} else if merResp.Status() != 200 {
 			logx.Errorf("响应状态 %d 错误", merResp.Status())
 		}
 	}
-	logx.Infof("代付提单 %s ，回调商户請求參數 %#v，商戶返回: %#v", ProxyPayCallBackMerRespVO.Get("OrderNo"), ProxyPayCallBackMerRespVO, string(merResp.Body()))
+	logx.Infof("代付提单 %s ，回调商户請求參數 %#v，商戶返回: %#v", ProxyPayCallBackMerRespVO.OrderNo, ProxyPayCallBackMerRespVO, string(merResp.Body()))
 	return
 }
 
