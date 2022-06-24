@@ -10,6 +10,7 @@ func init() {
 	initEn(language.Make("en"))
 	initZh(language.Make("zh"))
 }
+
 // initEn will init en support.
 func initEn(tag language.Tag) {
 	message.SetString(tag, "0", "Success")
@@ -433,6 +434,7 @@ func initEn(tag language.Tag) {
 	message.SetString(tag, "509", "Merchant wallet information error")
 	message.SetString(tag, "510", "Merchant order amount and callback amount is not match")
 	message.SetString(tag, "511", "Please enter the bank card number in the correct format, the length must be 13-22 digits")
+	message.SetString(tag, "607", "Call Back Amount is not meet Order Amount")
 	message.SetString(tag, "ACTION_DF_REFUND", "ACTION_DF_REFUND")
 	message.SetString(tag, "Account name", "Account name")
 	message.SetString(tag, "Actual handling fee", "Actual handling fee")
@@ -525,6 +527,7 @@ func initEn(tag language.Tag) {
 	message.SetString(tag, "Yes", "Yes")
 	message.SetString(tag, "ZF", "Payment")
 }
+
 // initZh will init zh support.
 func initZh(tag language.Tag) {
 	message.SetString(tag, "0", "操作成功")
@@ -948,6 +951,7 @@ func initZh(tag language.Tag) {
 	message.SetString(tag, "509", "商户錢包資料错误")
 	message.SetString(tag, "510", "商户下单金额和回調金額不符")
 	message.SetString(tag, "511", "银联行账(,卡)号，长度必须13~22位")
+	message.SetString(tag, "607", "代付回调金额与订单金额不符")
 	message.SetString(tag, "ACTION_DF_REFUND", "代付還款")
 	message.SetString(tag, "Account name", "开户姓名")
 	message.SetString(tag, "Actual handling fee", "实收手续费")

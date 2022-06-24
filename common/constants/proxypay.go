@@ -103,18 +103,18 @@ const (
 	ORDER_IS_CHECK = "2"
 
 	//**************** 人工处里状态 ***********************
-	/** 不需人工 **/
-	PERSON_PROCESS_NONE = "0"
-	/** 等待人工处里(无查询API) **/
-	PERSON_PROCESS_WAIT_NO_API = "1"
-	/** 等待人工处里(查询异常) **/
-	PERSON_PROCESS_WAIT_CHECK_FAIL = "2"
-	/** 等待人工处里(人工转单) **/
-	PERSON_PROCESS_WAIT_CHANGE = "3"
+	//人工处理状态：(0:待處理1:處理中2:成功3:失敗 10:不需处理)
+
+	/** 等待人工处里 **/
+	PERSON_PROCESS_WAIT_CHANGE = "0"
+	/** 处理中 **/
+	PERSON_PROCESS_ING = "1"
+	/** 已处里成功 **/
+	PERSON_PROCESS_END = "2"
 	/** 人工还款失败 **/
-	PERSON_PROCESS_REPAYMENT_FAIL = "4"
-	/** 已处里 **/
-	PERSON_PROCESS_END = "9"
+	PERSON_PROCESS__FAIL = "3"
+	/** 不需人工 **/
+	PERSON_PROCESS_NONE = "10"
 
 	//**************** 是否已回调商户 ***********************
 	/** 未回调 **/
