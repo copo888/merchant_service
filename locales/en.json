@@ -426,6 +426,7 @@
   "509": "Merchant wallet information error",
   "510": "Merchant order amount and callback amount is not match",
   "511": "Please enter the bank card number in the correct format, the length must be 13-22 digits",
+  "607": "代付回调金额与订单金额不符",
   "FROZEN": "FROZEN",
   "SUCCESS": "SUCCESS",
   "FAILURE": "FAILURE",

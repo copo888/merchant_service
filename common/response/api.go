@@ -104,4 +104,5 @@ var (
 	PROXY_PAY_AMOUNT_MAXINUM_FAIL   = "604" // "单笔大于最高代付金额"
 	PROXY_PAY_PERSON_PROCESS_FAIL   = "605" // "人工处里失败"
 	PROXY_PAY_IS_PERSON_PROCESS     = "606" // "提单目前为人工处里阶段，不可回调变更"
+	PROXY_PAY_AMOUNT_INVALID        = "607" // "代付回调金额与订单金额不符"
 )
