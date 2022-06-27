@@ -20,7 +20,7 @@ steps:
         - cd /root/merchant_service
         #- git checkout -- .
         - git checkout stage
-        #- git checkout -- .
+        - git checkout -- .
         - git pull origin stage
         - git pull
         - go mod tidy
