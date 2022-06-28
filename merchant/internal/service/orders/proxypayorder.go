@@ -76,11 +76,6 @@ func ProxyOrder(db *gorm.DB, req *types.ProxyPayRequestX) (rate *types.Correspon
         2. err       將错误返回
 */
 func checkProxyOrderAndRate(db *gorm.DB, merchant *types.Merchant, req *types.ProxyPayRequestX) (rate *types.CorrespondMerChnRate, err error) {
-	//respDTO := &vo.ProxyPayOrderRespVO{}
-	//返回物件ProxyPayOrderRespVO
-	//userAccount := "TEST0001"
-	//var balanceType string
-	//var orderFeeProfits []types.OrderFeeProfit
 
 	var orderAmount float64
 	if s, ok := req.OrderAmount.(string); ok {

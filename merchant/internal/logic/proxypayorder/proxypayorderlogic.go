@@ -66,7 +66,7 @@ func (l *ProxyPayOrderLogic) internalProxyPayOrder(merReq *types.ProxyPayRequest
 		return nil, errWhite
 	}
 
-	// 2. 處理商户提交参数、訂單驗證
+	// 2. 處理商户提交参数、訂單驗證，並返回商戶費率
 	rate, errCreate := ordersService.ProxyOrder(l.svcCtx.MyDB, merReq)
 	if errCreate != nil {
 		logx.Error("代付提單商户提交参数驗證錯誤: ", errCreate.Error())
@@ -121,7 +121,7 @@ func (l *ProxyPayOrderLogic) internalProxyPayOrder(merReq *types.ProxyPayRequest
 	//5. 返回給商戶物件
 	var proxyResp = types.ProxyPayOrderResponse{}
 	i18n.SetLang(language.English)
-	if errCHN != nil {
+	if errCHN != nil || proxyPayRespVO.Code != "0" {
 		logx.Errorf("代付提單: %s ，渠道返回錯誤: %s, %#v", respOrder.OrderNo, errCHN, proxyPayRespVO)
 		proxyResp.RespCode = response.CHANNEL_REPLY_ERROR
 		proxyResp.RespMsg = i18n.Sprintf(response.CHANNEL_REPLY_ERROR) + ": Code: " + proxyPayRespVO.Code + " Message: " + proxyPayRespVO.Message
