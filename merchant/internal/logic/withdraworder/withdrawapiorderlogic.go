@@ -17,6 +17,7 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 	"golang.org/x/text/language"
 	"gorm.io/gorm"
+	"regexp"
 	"strconv"
 )
 
@@ -68,6 +69,21 @@ func (l *WithdrawApiOrderLogic) WithdrawApiOrder(req *types.WithdrawApiOrderRequ
 		if isWhite := merchantsService.IPChecker(req.MyIp, merchant.ApiIP); !isWhite {
 			logx.Error("白名單檢查錯誤: ", req.MyIp)
 			return nil, errorz.New(response.API_IP_DENIED, "IP: "+req.MyIp)
+		}
+
+		//验证银行卡号(必填)(必须为数字)(长度必须在10~22码)
+		isMatch2, _ := regexp.MatchString(constants.REGEXP_BANK_ID, req.AccountNo)
+		currencyCode := req.Currency
+		if currencyCode == constants.CURRENCY_THB {
+			if req.AccountNo == "" || len(req.AccountNo) < 10 || len(req.AccountNo) > 16 || !isMatch2 {
+				logx.Error("銀行卡號檢查錯誤，需10-16碼內：", req.AccountNo)
+				return nil,errorz.New(response.INVALID_BANK_NO, "AccountNo: " + req.AccountNo)
+			}
+		}else if currencyCode == constants.CURRENCY_CNY {
+			if req.AccountNo == "" || len(req.AccountNo) < 13 || len(req.AccountNo) > 22 || !isMatch2 {
+				logx.Error("銀行卡號檢查錯誤，需13-22碼內：", req.AccountNo)
+				return nil,errorz.New(response.INVALID_BANK_NO, "AccountNo: " + req.AccountNo)
+			}
 		}
 
 		// 驗簽檢查

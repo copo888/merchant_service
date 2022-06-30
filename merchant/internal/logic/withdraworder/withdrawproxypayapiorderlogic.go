@@ -14,6 +14,7 @@ import (
 	"github.com/neccoys/go-zero-extension/redislock"
 	"golang.org/x/text/language"
 	"gorm.io/gorm"
+	"regexp"
 	"strconv"
 
 	"com.copo/bo_service/merchant/internal/svc"
@@ -127,6 +128,21 @@ func (l *WithdrawProxyPayApiOrderLogic) checkParams(db *gorm.DB, req *types.Prox
 	// 檢查白名單
 	if isWhite := merchantsService.IPChecker(req.Ip, merchant.ApiIP); !isWhite {
 		return false, errorz.New(response.API_IP_DENIED, "IP: "+req.Ip)
+	}
+
+	//验证银行卡号(必填)(必须为数字)(长度必须在10~22码)
+	isMatch2, _ := regexp.MatchString(constants.REGEXP_BANK_ID, req.BankNo)
+	currencyCode := req.Currency
+	if currencyCode == constants.CURRENCY_THB {
+		if req.BankNo == "" || len(req.BankNo) < 10 || len(req.BankNo) > 16 || !isMatch2 {
+			logx.Error("銀行卡號檢查錯誤，需10-16碼內：", req.BankNo)
+			return false,errorz.New(response.INVALID_BANK_NO, "BankNo: " + req.BankNo)
+		}
+	}else if currencyCode == constants.CURRENCY_CNY {
+		if req.BankNo == "" || len(req.BankNo) < 13 || len(req.BankNo) > 22 || !isMatch2 {
+			logx.Error("銀行卡號檢查錯誤，需13-22碼內：", req.BankNo)
+			return false,errorz.New(response.INVALID_BANK_NO, "BankNo: " + req.BankNo)
+		}
 	}
 
 	var orderAmount float64

@@ -516,8 +516,17 @@ func validateProxyParam(db *gorm.DB, req *types.ProxyPayRequestX, merchant *type
 
 	//6.验证银行卡号(必填)(必须为数字)(长度必须在13~22码)
 	isMatch2, _ := regexp.MatchString(constants.REGEXP_BANK_ID, req.BankNo)
-	if req.BankNo == "" || len(req.BankNo) < 13 || len(req.BankNo) > 22 || !isMatch2 {
-		return errorz.New(response.INVALID_BANK_NO, "BankNo: "+req.BankNo)
+	currencyCode := req.Currency
+	if currencyCode == constants.CURRENCY_THB {
+		if req.BankNo == "" || len(req.BankNo) < 10 || len(req.BankNo) > 16 || !isMatch2 {
+			logx.Error("銀行卡號檢查錯誤，需10-16碼內：", req.BankNo)
+			return errorz.New(response.INVALID_BANK_NO, "BankNo: " + req.BankNo)
+		}
+	}else if currencyCode == constants.CURRENCY_CNY {
+		if req.BankNo == "" || len(req.BankNo) < 13 || len(req.BankNo) > 22 || !isMatch2 {
+			logx.Error("銀行卡號檢查錯誤，需13-22碼內：", req.BankNo)
+			return errorz.New(response.INVALID_BANK_NO, "BankNo: " + req.BankNo)
+		}
 	}
 
 	//7.验证开户人姓名(必填)
