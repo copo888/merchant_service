@@ -139,6 +139,8 @@ const (
 	CURRENCY_CNY = "CNY"
 	/** 台币 **/
 	CURRENCY_TWD = "TWD"
+	/** 泰币 **/
+	CURRENCY_THB = "THB"
 
 	//**************** 代付订单结算 ***********************
 	/** 扣款记录 **/
