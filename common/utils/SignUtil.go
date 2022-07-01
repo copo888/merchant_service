@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/zeromicro/go-zero/core/logx"
+	"net/url"
 	"reflect"
 	"sort"
 	"strconv"
@@ -82,6 +83,11 @@ func VerifySign(reqSign string, data interface{}, screctKey string) bool {
 	return false
 }
 
+func SortAndSignFromUrlValues(data url.Values, screctKey string) string {
+	m := CovertUrlValuesToMap(data)
+	return SortAndSign(m, screctKey)
+}
+
 // SortAndSign2 排序后加签
 func SortAndSign2(data interface{}, screctKey string) string {
 	m := CovertToMap(data)
@@ -99,6 +105,14 @@ func SortAndSign(newData map[string]string, screctKey string) string {
 	logx.Info("加签参数: ", newSource)
 	logx.Info("签名字串: ", newSign)
 	return newSign
+}
+
+func CovertUrlValuesToMap(values url.Values) map[string]string {
+	m := make(map[string]string)
+	for k := range values {
+		m[k] = values.Get(k)
+	}
+	return m
 }
 
 // 檢查請求參數是否有空值
