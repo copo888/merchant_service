@@ -9,6 +9,7 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
+	"net/url"
 )
 
 /*
@@ -30,39 +31,20 @@ func PostCallbackToMerchant(db *gorm.DB, context *context.Context, orderX *types
 
 	status := changeOrderStatusToMerchant(orderX.Status)
 
-	//ProxyPayCallBackMerRespVO := url.Values{}
-	//ProxyPayCallBackMerRespVO.Set("MerchantId", orderX.MerchantCode)
-	//ProxyPayCallBackMerRespVO.Set("OrderNo", orderX.MerchantOrderNo)
-	//ProxyPayCallBackMerRespVO.Set("PayOrderNo", orderX.OrderNo)
-	//ProxyPayCallBackMerRespVO.Set("OrderStatus", status)
-	//ProxyPayCallBackMerRespVO.Set("OrderAmount", fmt.Sprintf("%.2f", orderX.OrderAmount))
-	//ProxyPayCallBackMerRespVO.Set("Fee", fmt.Sprintf("%.2f", orderX.Fee))
-	//ProxyPayCallBackMerRespVO.Set("PayOrderTime", orderX.TransAt.Time().Format("200601021504"))
-	ProxyPayCallBackMerRespVO := struct {
-		MerchantId   string `json:"merchantId"`
-		OrderNo      string `json:"orderNo"`
-		PayOrderNo   string `json:"payOrderNo"`
-		OrderStatus  string `json:"orderStatus"`
-		OrderAmount  string `json:"orderAmount"`
-		Fee          string `json:"fee"`
-		PayOrderTime string `json:"payOrderTime"`
-		Sign         string `json:"sign"`
-	}{}
-	ProxyPayCallBackMerRespVO.MerchantId = orderX.MerchantCode
-	ProxyPayCallBackMerRespVO.OrderNo = orderX.MerchantOrderNo
-	ProxyPayCallBackMerRespVO.PayOrderNo = orderX.OrderNo
-	ProxyPayCallBackMerRespVO.OrderStatus = status
-	ProxyPayCallBackMerRespVO.OrderAmount = fmt.Sprintf("%.2f", orderX.OrderAmount)
-	ProxyPayCallBackMerRespVO.Fee = fmt.Sprintf("%.2f", orderX.Fee)
-	ProxyPayCallBackMerRespVO.PayOrderTime = orderX.TransAt.Time().Format("200601021504")
-	// Convert map to json string
+	ProxyPayCallBackMerRespVO := url.Values{}
+	ProxyPayCallBackMerRespVO.Set("MerchantId", orderX.MerchantCode)
+	ProxyPayCallBackMerRespVO.Set("OrderNo", orderX.MerchantOrderNo)
+	ProxyPayCallBackMerRespVO.Set("PayOrderNo", orderX.OrderNo)
+	ProxyPayCallBackMerRespVO.Set("OrderStatus", status)
+	ProxyPayCallBackMerRespVO.Set("OrderAmount", fmt.Sprintf("%.2f", orderX.OrderAmount))
+	ProxyPayCallBackMerRespVO.Set("Fee", fmt.Sprintf("%.2f", orderX.Fee))
+	ProxyPayCallBackMerRespVO.Set("PayOrderTime", orderX.TransAt.Time().Format("200601021504"))
 
 	if err != nil {
 		logx.Info(err.Error())
 	}
-	sign := utils2.SortAndSign2(ProxyPayCallBackMerRespVO, merchant.ScrectKey)
-	ProxyPayCallBackMerRespVO.Sign = sign
-	//ProxyPayCallBackMerRespVO.Set("Sign", sign)
+	sign := utils2.SortAndSignFromUrlValues(ProxyPayCallBackMerRespVO, merchant.ScrectKey)
+	ProxyPayCallBackMerRespVO.Set("Sign", sign)
 	logx.Infof("代付提单 %s ，回调商户URL= %s，回调资讯= %#v", orderX.OrderNo, orderX.NotifyUrl, ProxyPayCallBackMerRespVO)
 
 	//TODO retry post for 10 times and 2s between each reqeuest
@@ -71,12 +53,12 @@ func PostCallbackToMerchant(db *gorm.DB, context *context.Context, orderX *types
 	merResp, merCallBackErr := gozzle.Post(orderX.NotifyUrl).Timeout(10).Trace(span).JSON(ProxyPayCallBackMerRespVO)
 	if merCallBackErr != nil || merResp.Status() != 200 {
 		if merCallBackErr != nil {
-			logx.Errorf("代付提单%s 回调商户异常，錯誤: %#v", ProxyPayCallBackMerRespVO.OrderNo, merCallBackErr)
+			logx.Errorf("代付提单%s 回调商户异常，錯誤: %#v", ProxyPayCallBackMerRespVO.Get("OrderNo"), merCallBackErr)
 		} else if merResp.Status() != 200 {
 			logx.Errorf("响应状态 %d 错误", merResp.Status())
 		}
 	}
-	logx.Infof("代付提单 %s ，回调商户請求參數 %#v，商戶返回: %#v", ProxyPayCallBackMerRespVO.OrderNo, ProxyPayCallBackMerRespVO, string(merResp.Body()))
+	logx.Infof("代付提单 %s ，回调商户請求參數 %#v，商戶返回: %#v", ProxyPayCallBackMerRespVO.Get("OrderNo"), ProxyPayCallBackMerRespVO, string(merResp.Body()))
 	return
 }
 
