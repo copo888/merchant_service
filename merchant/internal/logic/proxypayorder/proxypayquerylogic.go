@@ -35,11 +35,14 @@ func NewProxyPayQueryLogic(ctx context.Context, svcCtx *svc.ServiceContext) Prox
 
 func (l *ProxyPayQueryLogic) ProxyPayQuery(merReq *types.ProxyPayOrderQueryRequestX) (*types.ProxyPayOrderQueryResponse, error) {
 	logx.Info("Enter proxy-query:", merReq)
+	resp := &types.ProxyPayOrderQueryResponse{}
 	// 1. 檢查白名單、商户号，單號是否存在
 	merchantKey, txOrder, errWhite := l.CheckMerAndWhiteList(merReq)
 	if errWhite != nil {
 		logx.Error("商戶號及白名單檢查錯誤: ", i18n.Sprintf(errWhite.Error()))
-		return nil, errWhite
+		resp.RespCode = errWhite.Error()
+		resp.RespMsg = i18n.Sprintf(errWhite.Error())
+		return resp, errWhite
 	}
 
 	// 檢查簽名
@@ -49,7 +52,7 @@ func (l *ProxyPayQueryLogic) ProxyPayQuery(merReq *types.ProxyPayOrderQueryReque
 	}
 
 	// 1. 查copo DB 訂單狀態
-	var resp = types.ProxyPayOrderQueryResponse{} //返回商戶查單物件
+	//var resp = types.ProxyPayOrderQueryResponse{} //返回商戶查單物件
 	var status string
 	if txOrder.Status == "0" {
 		status = "0"
@@ -77,7 +80,7 @@ func (l *ProxyPayQueryLogic) ProxyPayQuery(merReq *types.ProxyPayOrderQueryReque
 	resp.Fee = strconv.FormatFloat(txOrder.TransferHandlingFee, 'f', 2, 64)
 	resp.Sign = utils.SortAndSign2(resp, merchantKey)
 
-	return &resp, nil
+	return resp, nil
 
 	// 2. call 渠道
 	//依單號取得渠道網關地址
