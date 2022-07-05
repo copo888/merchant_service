@@ -110,6 +110,8 @@ github.com/copo888/transaction_service v0.0.0-20220613111252-f4d20a8ccd6f h1:Skw
 github.com/copo888/transaction_service v0.0.0-20220613111252-f4d20a8ccd6f/go.mod h1:8WD+yNvxUZDv73+qHo0oSwk1akwbedV7bqzzLRgbWMc=
 github.com/copo888/transaction_service v0.0.0-20220621023744-62790afff946 h1:PEDwiurjT16it2UNNy0VQXWDgUL1k+VS4LSMVBLpDFo=
 github.com/copo888/transaction_service v0.0.0-20220621023744-62790afff946/go.mod h1:8WD+yNvxUZDv73+qHo0oSwk1akwbedV7bqzzLRgbWMc=
+github.com/copo888/transaction_service v0.0.0-20220701112219-dfa7c87d9041 h1:xzQ/CHwOZRBDvPdL5plsLNKavk7nW+U0/clJNrSUqb4=
+github.com/copo888/transaction_service v0.0.0-20220701112219-dfa7c87d9041/go.mod h1:8WD+yNvxUZDv73+qHo0oSwk1akwbedV7bqzzLRgbWMc=
 github.com/coreos/go-semver v0.3.0 h1:wkHLiw0WNATZnSG7epLsujiMCgPAc9xhjJ4tgnAxmfM=
 github.com/coreos/go-semver v0.3.0/go.mod h1:nnelYz7RCh+5ahJtPPxZlU+153eP4D4r3EedlOD2RNk=
 github.com/coreos/go-systemd v0.0.0-20190321100706-95778dfbb74e/go.mod h1:F5haX7vjVVG0kc13fIWeqUViNPyEJxv/OmvnBo0Yme4=
