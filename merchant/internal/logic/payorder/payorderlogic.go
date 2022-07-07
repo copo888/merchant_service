@@ -16,7 +16,6 @@ import (
 	"github.com/jinzhu/copier"
 	"github.com/neccoys/go-zero-extension/redislock"
 	"golang.org/x/text/language"
-	"strconv"
 	"time"
 
 	"context"
@@ -62,17 +61,6 @@ func (l *PayOrderLogic) PayOrder(req types.PayOrderRequestX) (resp *types.PayOrd
 func (l *PayOrderLogic) DoPayOrder(req types.PayOrderRequestX) (resp *types.PayOrderResponse, err error) {
 
 	var merchant *types.Merchant
-	var orderAmount string
-	if s, ok := req.OrderAmount.(string); ok {
-		orderAmount = s
-	} else if f, ok := req.OrderAmount.(float64); ok {
-		precise := utils.GetDecimalPlaces(f)
-		orderAmount = strconv.FormatFloat(f, 'f', precise, 64)
-	} else {
-		s := fmt.Sprintf("OrderAmount err: %#v", req.OrderAmount)
-		logx.Errorf(s)
-		return resp, errorz.New(response.API_INVALID_PARAMETER, s)
-	}
 
 	// 取得商戶
 	if err = l.svcCtx.MyDB.Table("mc_merchants").
@@ -92,8 +80,10 @@ func (l *PayOrderLogic) DoPayOrder(req types.PayOrderRequestX) (resp *types.PayO
 		return nil, errorz.New(response.IP_DENIED, "IP: "+req.MyIp)
 	}
 
-	req.PayOrderRequest.OrderAmount = orderAmount
-	// 檢查驗簽 TODO: 驗簽先拿掉
+	req.PayOrderRequest.OrderAmount = req.OrderAmount.String()
+	req.PayOrderRequest.AccessType = req.AccessType.String()
+	req.PayOrderRequest.PayTypeNo = req.PayTypeNo.String()
+
 	if isSameSign := utils.VerifySign(req.Sign, req.PayOrderRequest, merchant.ScrectKey); !isSameSign {
 		return nil, errorz.New(response.INVALID_SIGN)
 	}
@@ -123,7 +113,7 @@ func (l *PayOrderLogic) DoPayOrder(req types.PayOrderRequestX) (resp *types.PayO
 	var rpcRate transaction.CorrespondMerChnRate
 	copier.Copy(&rpcPayOrder, &req)
 	copier.Copy(&rpcRate, correspondMerChnRate)
-	rpcPayOrder.OrderAmount = orderAmount
+	rpcPayOrder.OrderAmount = req.OrderAmount.String()
 	
 	// CALL transactionc PayOrderTranaction
 	rpc := transactionclient.NewTransaction(l.svcCtx.RpcService("transaction.rpc"))
