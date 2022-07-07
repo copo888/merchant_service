@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
@@ -18,6 +19,7 @@ func init() {
 	MyValidator.RegisterValidation("alphanumLength", checkAlphanumLength)
 	MyValidator.RegisterValidation("length", checkLength)
 	MyValidator.RegisterValidation("prec", checkPrecision)
+	MyValidator.RegisterValidation("jsanNumPrec", checkJsonNumberPrecision)
 	MyValidator.RegisterValidation("floatString", checkFloatString)
 	// 翻譯
 	//en := en.New()
@@ -41,6 +43,18 @@ func checkPrecision(fl validator.FieldLevel) bool {
 	re := fmt.Sprintf("^\\d{1,}\\.?\\d{0,%s}$", param)
 	r := regexp.MustCompile(re)
 	return r.MatchString(field)
+}
+
+func checkJsonNumberPrecision(fl validator.FieldLevel) bool {
+	inter := fl.Field()
+	field, ok := inter.Interface().(json.Number)
+	if !ok {
+		return false
+	}
+	param := fl.Param()
+	re := fmt.Sprintf("^\\d{1,}\\.?\\d{0,%s}$", param)
+	r := regexp.MustCompile(re)
+	return r.MatchString(field.String())
 }
 
 func checkAlphanumLength(fl validator.FieldLevel) bool {

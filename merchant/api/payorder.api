@@ -9,7 +9,7 @@ info(
 )
 
 type PayOrderRequest {
-    AccessType string `json:"accessType, optional" validate:"required,max=2"`
+    AccessType string `json:"accessType, optional"`
     MerchantId string `json:"merchantId, optional" validate:"required"`
     NotifyUrl string `json:"notifyUrl, optional"  validate:"required,max=180"`
     PageUrl string `json:"pageUrl, optional"`
@@ -25,7 +25,7 @@ type PayOrderRequest {
     OrderName string `json:"orderName, optional" validate:"required,max=180"`
     BankCode string `json:"bankCode, optional" validate:"max=12"`
     Phone string `json:"phone, optional" validate:"max=18"`
-    PayTypeNo string `json:"payTypeNo, optional" validate:"max=4"`
+    PayTypeNo string `json:"payTypeNo, optional"`
     UserId string `json:"userId, optional" validate:"max=255"`
     MerchantLevel string `json:"merchantLevel, optional" validate:"max=3"`
     UserIp string `json:"userIp, optional" validate:"max=64"`
