@@ -22,8 +22,6 @@ steps:
         #- git checkout -- .
         - git checkout master
         - git checkout -- .
-        - git pull origin master
-        - git pull
         - go mod tidy
         - docker-compose down
         - docker rmi -f $(docker images --filter="reference=merchant_service" --quiet)
