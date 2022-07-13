@@ -1,0 +1,42 @@
+kind: pipeline
+name: merchant_api
+
+clone:
+  disable: true
+
+steps:
+  - name: docker-merchant
+    image: appleboy/drone-ssh
+    settings:
+      host:
+        - 172.28.222.65
+        - 172.28.164.3
+      username:
+        from_secret: user
+      password:
+        from_secret: pwd
+      port:
+        from_secret: port
+      script:
+        - cd /root/merchant_service
+        #- git checkout -- .
+        - git checkout master
+        - git checkout -- .
+        - git pull origin master
+        - git pull
+        - go mod tidy
+        - docker-compose down
+        - docker rmi -f $(docker images --filter="reference=merchant_service" --quiet)
+        - docker rmi -f $(docker images -qf "dangling=true")
+        - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o merchant merchant/merchant.go
+        - docker build -t merchant_service .
+        - docker-compose  up -d
+    when:
+      branch:
+        - master
+      event:
+        - push
+        
+trigger:
+  branch:
+    - master
