@@ -34,7 +34,6 @@ steps:
         - master
       event:
         - push
-        
 trigger:
   branch:
     - master
