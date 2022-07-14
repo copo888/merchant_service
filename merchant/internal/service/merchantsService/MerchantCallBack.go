@@ -41,14 +41,13 @@ func PostCallbackToMerchant(db *gorm.DB, context *context.Context, orderX *types
 	ProxyPayCallBackMerRespVO.Set("PayOrderTime", orderX.TransAt.Time().Format("200601021504"))
 
 	if err != nil {
-		logx.Info(err.Error())
+		logx.Error(err.Error())
 	}
 	sign := utils2.SortAndSignFromUrlValues(ProxyPayCallBackMerRespVO, merchant.ScrectKey)
 	ProxyPayCallBackMerRespVO.Set("Sign", sign)
 	logx.Infof("代付提单 %s ，回调商户URL= %s，回调资讯= %#v", orderX.OrderNo, orderX.NotifyUrl, ProxyPayCallBackMerRespVO)
 
 	//TODO retry post for 10 times and 2s between each reqeuest
-	//TODO 內部測試，測完需移除
 	//merResp, merCallBackErr := gozzle.Post("http://172.16.204.115:8083/dior/merchant-api/merchant-call-back").Timeout(10).Trace(span).Form(ProxyPayCallBackMerRespVO)
 	merResp, merCallBackErr := gozzle.Post(orderX.NotifyUrl).Timeout(10).Trace(span).JSON(ProxyPayCallBackMerRespVO)
 	if merCallBackErr != nil || merResp.Status() != 200 {

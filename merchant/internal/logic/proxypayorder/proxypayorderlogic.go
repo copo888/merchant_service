@@ -58,24 +58,30 @@ func (l *ProxyPayOrderLogic) ProxyPayOrder(merReq *types.ProxyPayRequestX) (*typ
 
 func (l *ProxyPayOrderLogic) internalProxyPayOrder(merReq *types.ProxyPayRequestX) (*types.ProxyPayOrderResponse, error) {
 	logx.Info("Enter proxy-order:", merReq)
-
+	resp := &types.ProxyPayOrderResponse{}
 	// 1. 檢查白名單及商户号
 	merchantKey, errWhite := l.CheckMerAndWhiteList(merReq)
 	if errWhite != nil {
 		logx.Error("商戶號及白名單檢查錯誤: ", errWhite.Error())
-		return nil, errWhite
+		resp.RespCode = errWhite.Error()
+		resp.RespMsg = i18n.Sprintf(errWhite.Error())
+		return resp, errWhite
 	}
 
 	// 2. 處理商户提交参数、訂單驗證，並返回商戶費率
 	rate, errCreate := ordersService.ProxyOrder(l.svcCtx.MyDB, merReq)
 	if errCreate != nil {
-		logx.Error("代付提單商户提交参数驗證錯誤: ", errCreate.Error())
-		return nil, errCreate
+		logx.Errorf("代付提單商户提交参数驗證錯誤: %s:%s", errCreate.Error(), i18n.Sprintf(errCreate.Error()))
+		resp.RespCode = errCreate.Error()
+		resp.RespMsg = i18n.Sprintf(errCreate.Error())
+		return resp, errCreate
 	}
 
 	balanceType, errBalance := merchantbalanceservice.GetBalanceType(l.svcCtx.MyDB, rate.ChannelCode, constants.ORDER_TYPE_DF)
 	if errBalance != nil {
-		return nil, errBalance
+		resp.RespCode = errBalance.Error()
+		resp.RespMsg = i18n.Sprintf(errBalance.Error())
+		return resp, errBalance
 	}
 
 	// 3. 依balanceType决定要呼叫哪种transaction方法
@@ -87,7 +93,7 @@ func (l *ProxyPayOrderLogic) internalProxyPayOrder(merReq *types.ProxyPayRequest
 	rpc := transactionclient.NewTransaction(l.svcCtx.RpcService("transaction.rpc"))
 
 	var errRpc error
-	var res *transaction.ProxyOrderResponse
+	var res *transactionclient.ProxyOrderResponse
 	if balanceType == "DFB" {
 		res, errRpc = rpc.ProxyOrderTranaction_DFB(l.ctx, &transaction.ProxyOrderRequest{
 			Req:  ProxyPayOrderRequest,
@@ -101,8 +107,14 @@ func (l *ProxyPayOrderLogic) internalProxyPayOrder(merReq *types.ProxyPayRequest
 	}
 
 	if errRpc != nil {
-		logx.Error("代付提單:", errRpc.Error())
+		logx.Error("代付提單Rpc呼叫失败:", errRpc.Error())
+		resp.RespCode = response.FAIL
 		return nil, errorz.New(response.FAIL, errRpc.Error())
+	} else if res.Code != "000" {
+		logx.Infof("代付交易rpc返回失败，%s 錢包扣款失败: %#v", balanceType, res)
+		resp.RespCode = res.Code
+		resp.RespMsg = res.Message
+		return resp, nil
 	} else {
 		logx.Infof("代付交易rpc完成，%s 錢包扣款完成: %#v", balanceType, res)
 	}
@@ -122,9 +134,7 @@ func (l *ProxyPayOrderLogic) internalProxyPayOrder(merReq *types.ProxyPayRequest
 	var proxyResp = types.ProxyPayOrderResponse{}
 	i18n.SetLang(language.English)
 	if errCHN != nil || proxyPayRespVO.Code != "0" {
-		logx.Errorf("代付提單: %s ，渠道返回錯誤: %s, %#v", respOrder.OrderNo, errCHN, proxyPayRespVO)
-		proxyResp.RespCode = response.CHANNEL_REPLY_ERROR
-		proxyResp.RespMsg = i18n.Sprintf(response.CHANNEL_REPLY_ERROR) + ": Code: " + proxyPayRespVO.Code + " Message: " + proxyPayRespVO.Message
+		logx.Errorf("代付提單: %s ，渠道返回錯誤: %s:%s, %#v", respOrder.OrderNo, errCHN, i18n.Sprintf(errCHN.Error()), proxyPayRespVO)
 
 		//将商户钱包加回 (merchantCode, orderNO)，更新狀態為失敗單
 		var resRpc *transaction.ProxyPayFailResponse
@@ -139,14 +149,25 @@ func (l *ProxyPayOrderLogic) internalProxyPayOrder(merReq *types.ProxyPayRequest
 				OrderNo:      respOrder.OrderNo,
 			})
 		}
+
 		//因在transaction_service 已更新過訂單，重新抓取訂單
 		if respOrder, queryErr = model.QueryOrderByOrderNo(l.svcCtx.MyDB, res.ProxyOrderNo, ""); queryErr != nil {
 			logx.Errorf("撈取代付訂單錯誤: %s, respOrder:%#v", queryErr, respOrder)
 			return nil, errorz.New(response.FAIL, queryErr.Error())
 		}
 
-		respOrder.ErrorType = "1" //   1.渠道返回错误	2.渠道异常	3.商户参数错误	4.账户为黑名单	5.其他
-		respOrder.ErrorNote = "渠道返回错误: " + proxyPayRespVO.Message
+		//處理渠道回傳錯誤訊息
+		proxyResp.RespCode = response.CHANNEL_REPLY_ERROR
+		if errCHN != nil {
+			proxyResp.RespMsg = i18n.Sprintf(response.CHANNEL_REPLY_ERROR) + ": Error: " + i18n.Sprintf(errCHN.Error())
+			respOrder.ErrorType = "2" //   1.渠道返回错误	2.渠道异常	3.商户参数错误	4.账户为黑名单	5.其他
+			respOrder.ErrorNote = "渠道异常: " + i18n.Sprintf(errCHN.Error())
+
+		} else if proxyPayRespVO.Code != "0" {
+			respOrder.ErrorType = "1" //   1.渠道返回错误	2.渠道异常	3.商户参数错误	4.账户为黑名单	5.其他
+			respOrder.ErrorNote = "渠道返回错误。Code:" + proxyPayRespVO.Code + " Message: " + proxyPayRespVO.Message
+			proxyResp.RespMsg = i18n.Sprintf(response.CHANNEL_REPLY_ERROR) + ": Code: " + proxyPayRespVO.Code + " Message: " + proxyPayRespVO.Message
+		}
 
 		if errRpc != nil {
 			logx.Errorf("代付提单 %s 还款失败。 Err: %s", respOrder.OrderNo, errRpc.Error())
@@ -157,18 +178,24 @@ func (l *ProxyPayOrderLogic) internalProxyPayOrder(merReq *types.ProxyPayRequest
 			respOrder.RepaymentStatus = constants.REPAYMENT_SUCCESS
 		}
 
+		// 更新订单
+		if errUpdate := l.svcCtx.MyDB.Table("tx_orders").Updates(respOrder).Error; errUpdate != nil {
+			logx.Error("代付订单更新状态错误: ", errUpdate.Error())
+		}
+
 	} else {
 		respOrder.ChannelOrderNo = proxyPayRespVO.Data.ChannelOrderNo
 		//条整订单状态从"待处理" 到 "交易中"
 		respOrder.Status = constants.TRANSACTION
 		proxyResp.RespCode = response.API_SUCCESS
 		proxyResp.RespMsg = i18n.Sprintf(response.API_SUCCESS) //固定回商戶成功
+
+		// 更新订单
+		if errUpdate := l.svcCtx.MyDB.Table("tx_orders").Updates(respOrder).Error; errUpdate != nil {
+			logx.Error("代付订单更新状态错误: ", errUpdate.Error())
+		}
 	}
 
-	// 更新订单
-	if errUpdate := l.svcCtx.MyDB.Table("tx_orders").Updates(respOrder).Error; errUpdate != nil {
-		logx.Error("代付订单更新状态错误: ", errUpdate.Error())
-	}
 	// 依渠道返回给予订单状态
 	var orderStatus string
 	if respOrder.Status == constants.FAIL {

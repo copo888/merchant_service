@@ -8,6 +8,7 @@ import (
 	"com.copo/bo_service/merchant/internal/types"
 	"encoding/json"
 	"github.com/thinkeridea/go-extend/exnet"
+	"github.com/zeromicro/go-zero/core/logx"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"io"
@@ -22,10 +23,13 @@ func PayOrderHandler(ctx *svc.ServiceContext) http.HandlerFunc {
 		defer span.End()
 
 		bodyBytes, err := io.ReadAll(r.Body)
+
 		if  err != nil {
 			response.Json(w, r, response.FAIL, nil, err)
 			return
 		}
+
+		logx.Infof("PayOrder enter: %s", string(bodyBytes))
 
 		if err := json.Unmarshal(bodyBytes, &req); err != nil {
 			response.Json(w, r, response.FAIL, nil, err)

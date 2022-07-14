@@ -63,7 +63,7 @@ func ProxyOrder(db *gorm.DB, req *types.ProxyPayRequestX) (rate *types.Correspon
 	//TODO 儲存DB do and wait for lock 15s
 	rate, err = checkProxyOrderAndRate(db, merchant, req)
 	if err != nil {
-		logx.Errorf("代付提单储存失败%s:", err.Error())
+		logx.Errorf("代付提单储存失败%s:%s", err.Error(), i18n.Sprintf(err.Error()))
 		return rate, err
 	}
 
