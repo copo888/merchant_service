@@ -33,6 +33,7 @@ func NewWithdrawApiQueryLogic(ctx context.Context, svcCtx *svc.ServiceContext) W
 }
 
 func (l *WithdrawApiQueryLogic) WithdrawApiQuery(req *types.WithdrawApiQueryRequestX) (resp *types.WithdrawApiQueryResponse, err error) {
+	logx.Info("Enter withdraw-query: %#v", req)
 	var merchant *types.Merchant
 	var order *types.OrderX
 

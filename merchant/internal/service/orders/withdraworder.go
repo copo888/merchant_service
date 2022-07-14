@@ -97,7 +97,7 @@ func WithdrawOrderCreate(db *gorm.DB, req []types.OrderWithdrawCreateRequestX, o
 		Errs:   errs,
 	}
 
-	return
+	return resp, nil
 }
 
 func WithdrawApiCallBack(db *gorm.DB, req types.OrderX) error {

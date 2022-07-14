@@ -33,7 +33,7 @@ func NewWithdrawProxyPayApiQueryLogic(ctx context.Context, svcCtx *svc.ServiceCo
 }
 
 func (l *WithdrawProxyPayApiQueryLogic) WithdrawProxyPayApiQuery(req *types.ProxyPayOrderQueryRequestX) (resp *types.WithdrawApiQueryResponse, err error) {
-	logx.Info("Enter withdraw-query-proxy:", req)
+	logx.Info("Enter withdraw-query-proxy: %#v", req)
 	var merchant *types.Merchant
 	var order *types.OrderX
 
