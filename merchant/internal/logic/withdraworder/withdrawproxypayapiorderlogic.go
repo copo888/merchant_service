@@ -38,7 +38,7 @@ func NewWithdrawProxyPayApiOrderLogic(ctx context.Context, svcCtx *svc.ServiceCo
 }
 
 func (l *WithdrawProxyPayApiOrderLogic) WithdrawProxyPayApiOrder(req *types.ProxyPayRequestX) (resp *types.WithdrawApiOrderResponse, err error) {
-	logx.Infof("Enter withdraw-order-proxy:", req)
+	logx.Infof("Enter withdraw-order-proxy: %#v", req)
 	db := l.svcCtx.MyDB
 	redisKey := fmt.Sprintf("%s-%s", req.MerchantId, req.OrderNo)
 	redisLock := redislock.New(l.svcCtx.RedisClient, redisKey, "withdraw:")

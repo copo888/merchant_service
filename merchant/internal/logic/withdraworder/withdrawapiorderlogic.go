@@ -36,7 +36,7 @@ func NewWithdrawApiOrderLogic(ctx context.Context, svcCtx *svc.ServiceContext) W
 }
 
 func (l *WithdrawApiOrderLogic) WithdrawApiOrder(req *types.WithdrawApiOrderRequestX) (resp *types.WithdrawApiOrderResponse, err error) {
-	logx.Info("Enter withdraw-order:", req)
+	logx.Infof("Enter withdraw-order: %#v", req)
 	db := l.svcCtx.MyDB
 	redisKey := fmt.Sprintf("%s-%s", req.MerchantId, req.OrderNo)
 	redisLock := redislock.New(l.svcCtx.RedisClient, redisKey, "withdraw:")

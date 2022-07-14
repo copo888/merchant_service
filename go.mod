@@ -5,7 +5,7 @@ go 1.16
 require (
 	github.com/Xuanwo/go-locale v1.1.0 // indirect
 	github.com/copo888/copo_otp v0.0.0-20220214091859-c12681eb41d7
-	github.com/copo888/transaction_service v0.0.0-20220701112219-dfa7c87d9041
+	github.com/copo888/transaction_service v0.0.0-20220714070348-91035a790e04
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/gioco-play/easy-i18n v0.0.0-20211230163059-f5ca29729c30
 	github.com/gioco-play/go-driver v0.0.0-20211119093837-f8aab6d6ef69
