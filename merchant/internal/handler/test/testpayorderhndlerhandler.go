@@ -42,7 +42,7 @@ func TestPayOrderHndlerHandler(ctx *svc.ServiceContext) http.HandlerFunc {
 		if err != nil {
 			response.ApiErrorJson(w, r, err.Error(), err)
 		} else {
-			response.Json(w, r, response.SUCCESS, resp, err)
+			response.ApiJson(w, r, resp)
 		}
 	}
 }
