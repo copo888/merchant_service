@@ -8,9 +8,10 @@ import (
 	"com.copo/bo_service/merchant/internal/types"
 	"encoding/json"
 	"github.com/thinkeridea/go-extend/exnet"
-	"github.com/zeromicro/go-zero/rest/httpx"
+	"github.com/zeromicro/go-zero/core/logx"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"io"
 	"net/http"
 )
 
@@ -21,8 +22,17 @@ func PayOrderHandler(ctx *svc.ServiceContext) http.HandlerFunc {
 		span := trace.SpanFromContext(r.Context())
 		defer span.End()
 
-		if err := httpx.ParseJsonBody(r, &req); err != nil {
-			response.ApiErrorJson(w, r, response.API_INVALID_PARAMETER, err)
+		bodyBytes, err := io.ReadAll(r.Body)
+
+		if  err != nil {
+			response.Json(w, r, response.FAIL, nil, err)
+			return
+		}
+
+		logx.Infof("PayOrder enter: %s", string(bodyBytes))
+
+		if err := json.Unmarshal(bodyBytes, &req); err != nil {
+			response.Json(w, r, response.FAIL, nil, err)
 			return
 		}
 

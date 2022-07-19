@@ -258,7 +258,10 @@ type CalculateProfit struct {
 
 type PayOrderRequestX struct {
 	PayOrderRequest
-	MyIp string `json:"my_ip, optional"`
+	AccessType  json.Number `json:"accessType, optional" validate:"required"`
+	PayTypeNo   json.Number `json:"payTypeNo, optional"`
+	OrderAmount json.Number `json:"orderAmount, optional" validate:"required,jsanNumPrec=2"`
+	MyIp        string      `json:"my_ip, optional"`
 }
 
 type PayQueryRequestX struct {
@@ -273,7 +276,8 @@ type PayQueryBalanceRequestX struct {
 
 type ProxyPayRequestX struct {
 	ProxyPayOrderRequest
-	Ip string `json:"ip, optional"`
+	OrderAmount interface{} `json:"orderAmount" validate: "required"` //到小數兩位
+	Ip          string      `json:"ip, optional"`
 }
 
 type ProxyPayOrderQueryRequestX struct {
@@ -299,6 +303,7 @@ type OrderWithdrawCreateRequestX struct {
 	PageUrl         string `json:"page_url, optional"`
 	Source          string `json:"source, optional"`
 	Type            string `json:"type, optional"`
+	ChangeType      string `json:"change_type, optional"`
 }
 
 type OrderWithdrawCreateResponse struct {

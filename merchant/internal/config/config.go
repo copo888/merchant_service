@@ -7,7 +7,8 @@ import (
 )
 
 type Config struct {
-	Host string
+	Host           string
+	Server         string
 	FrontEndDomain string
 	rest.RestConf
 	service.ServiceConf

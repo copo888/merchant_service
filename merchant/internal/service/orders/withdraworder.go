@@ -78,13 +78,17 @@ func WithdrawOrderCreate(db *gorm.DB, req []types.OrderWithdrawCreateRequestX, o
 		MerchantOrderNo: order.MerchantOrderNo,
 		NotifyUrl: order.NotifyUrl,
 		PageUrl: order.PageUrl,
+		ChangeType: order.ChangeType,
 	})
 
 	if errRpc != nil {
-		logx.Error("下发提單:", errRpc.Error())
+		logx.Error("WithdrawOrderTranaction rpcResp error:%s", errRpc.Error())
 		return nil, errorz.New(response.FAIL, errRpc.Error())
-	} else {
-		logx.Infof("下发提单rpc完成，单号: %v", "XFB", res)
+	} else if res.Code != response.API_SUCCESS{
+		logx.Errorf("WithdrawOrderTranaction error Code:%s, Message:%s", res.Code, res.Message)
+		return nil, errorz.New(res.Code, res.Message)
+	}else if res.Code == response.API_SUCCESS{
+		logx.Infof("下发提单rpc完成，单号: %v", res)
 	}
 
 	resp = &types.OrderWithdrawCreateResponse{
@@ -93,7 +97,7 @@ func WithdrawOrderCreate(db *gorm.DB, req []types.OrderWithdrawCreateRequestX, o
 		Errs:   errs,
 	}
 
-	return
+	return resp, nil
 }
 
 func WithdrawApiCallBack(db *gorm.DB, req types.OrderX) error {

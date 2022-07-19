@@ -18,22 +18,22 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
-type WithdrawApiQueryLogic struct {
+type WithdrawProxyPayApiQueryLogic struct {
 	logx.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
-func NewWithdrawApiQueryLogic(ctx context.Context, svcCtx *svc.ServiceContext) WithdrawApiQueryLogic {
-	return WithdrawApiQueryLogic{
+func NewWithdrawProxyPayApiQueryLogic(ctx context.Context, svcCtx *svc.ServiceContext) WithdrawProxyPayApiQueryLogic {
+	return WithdrawProxyPayApiQueryLogic{
 		Logger: logx.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
 	}
 }
 
-func (l *WithdrawApiQueryLogic) WithdrawApiQuery(req *types.WithdrawApiQueryRequestX) (resp *types.WithdrawApiQueryResponse, err error) {
-	logx.Info("Enter withdraw-query: %#v", req)
+func (l *WithdrawProxyPayApiQueryLogic) WithdrawProxyPayApiQuery(req *types.ProxyPayOrderQueryRequestX) (resp *types.WithdrawApiQueryResponse, err error) {
+	logx.Info("Enter withdraw-query-proxy: %#v", req)
 	var merchant *types.Merchant
 	var order *types.OrderX
 
@@ -50,13 +50,16 @@ func (l *WithdrawApiQueryLogic) WithdrawApiQuery(req *types.WithdrawApiQueryRequ
 	}
 
 	// 檢查白名單
-	if isWhite := merchantsService.IPChecker(req.MyIp, merchant.ApiIP); !isWhite {
-		return nil, errorz.New(response.IP_DENIED, "IP: "+req.MyIp)
+	if isWhite := merchantsService.IPChecker(req.Ip, merchant.ApiIP); !isWhite {
+		logx.Error("白名單檢查錯誤: IP:", req.Ip)
+		return nil, errorz.New(response.IP_DENIED, "IP: "+req.Ip)
 	}
 
-	// 檢查驗簽
-	if isSameSign := utils.VerifySign(req.Sign, req.WithdrawApiQueryRequest, merchant.ScrectKey); !isSameSign {
-		return nil, errorz.New(response.SIGN_KEY_FAIL)
+	// 檢查簽名
+	checkSign := utils.VerifySign(req.Sign, req.ProxyPayOrderQueryRequest, merchant.ScrectKey)
+	if !checkSign {
+		logx.Error("驗簽檢查錯誤: sign:", req.Sign)
+		return nil, errorz.New(response.INVALID_SIGN)
 	}
 
 	if err = l.svcCtx.MyDB.Table("tx_orders").
@@ -81,6 +84,5 @@ func (l *WithdrawApiQueryLogic) WithdrawApiQuery(req *types.WithdrawApiQueryRequ
 	}
 
 	resp.Sign = utils.SortAndSign2(*resp, merchant.ScrectKey)
-
 	return
 }

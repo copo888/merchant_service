@@ -98,6 +98,16 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Path:    "/withdraw-test-callback",
 				Handler: withdraworder.WithdrawApiTestCallBackHandler(serverCtx),
 			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/withdraw-order-by-proxy",
+				Handler: withdraworder.WithdrawProxyPayApiOrderHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/withdraw-query-by-proxy",
+				Handler: withdraworder.WithdrawProxyPayApiQueryHandler(serverCtx),
+			},
 		},
 		rest.WithPrefix("/dior/merchant-api"),
 	)

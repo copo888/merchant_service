@@ -22,6 +22,7 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 	"golang.org/x/text/language"
 	"gorm.io/gorm"
+	"strconv"
 )
 
 type ProxyPayOrderLogic struct {
@@ -44,7 +45,6 @@ func (l *ProxyPayOrderLogic) ProxyPayOrder(merReq *types.ProxyPayRequestX) (*typ
 	redisKey := fmt.Sprintf("%s-%s", merReq.MerchantId, merReq.OrderNo)
 	redisLock := redislock.New(l.svcCtx.RedisClient, redisKey, "proxy-pay:")
 	redisLock.SetExpire(5)
-	//New(l.svcCtx.RedisClient,redisKey,"proxy-pay:").
 	if isOK, _ := redisLock.Acquire(); isOK {
 		if resp, err = l.internalProxyPayOrder(merReq); err != nil {
 			return nil, err
@@ -58,36 +58,42 @@ func (l *ProxyPayOrderLogic) ProxyPayOrder(merReq *types.ProxyPayRequestX) (*typ
 
 func (l *ProxyPayOrderLogic) internalProxyPayOrder(merReq *types.ProxyPayRequestX) (*types.ProxyPayOrderResponse, error) {
 	logx.Info("Enter proxy-order:", merReq)
-
+	resp := &types.ProxyPayOrderResponse{}
 	// 1. 檢查白名單及商户号
 	merchantKey, errWhite := l.CheckMerAndWhiteList(merReq)
 	if errWhite != nil {
 		logx.Error("商戶號及白名單檢查錯誤: ", errWhite.Error())
-		return nil, errWhite
+		resp.RespCode = errWhite.Error()
+		resp.RespMsg = i18n.Sprintf(errWhite.Error())
+		return resp, errWhite
 	}
 
-	// 2. 處理商户提交参数、訂單驗證
+	// 2. 處理商户提交参数、訂單驗證，並返回商戶費率
 	rate, errCreate := ordersService.ProxyOrder(l.svcCtx.MyDB, merReq)
 	if errCreate != nil {
-		logx.Error("代付提單商户提交参数驗證錯誤: ", errCreate.Error())
-		return nil, errCreate
+		logx.Errorf("代付提單商户提交参数驗證錯誤: %s:%s", errCreate.Error(), i18n.Sprintf(errCreate.Error()))
+		resp.RespCode = errCreate.Error()
+		resp.RespMsg = i18n.Sprintf(errCreate.Error())
+		return resp, errCreate
 	}
 
 	balanceType, errBalance := merchantbalanceservice.GetBalanceType(l.svcCtx.MyDB, rate.ChannelCode, constants.ORDER_TYPE_DF)
 	if errBalance != nil {
-		return nil, errBalance
+		resp.RespCode = errBalance.Error()
+		resp.RespMsg = i18n.Sprintf(errBalance.Error())
+		return resp, errBalance
 	}
 
 	// 3. 依balanceType决定要呼叫哪种transaction方法
 	//    呼叫 transaction rpc (merReq, rate) (ProxyOrderNo) 并产生订单
 
 	//產生rpc 代付需要的請求的資料物件
-	ProxyPayOrderRequest, rateRpc := generateRpcdata(&merReq.ProxyPayOrderRequest, rate)
+	ProxyPayOrderRequest, rateRpc := generateRpcdata(merReq, rate)
 
 	rpc := transactionclient.NewTransaction(l.svcCtx.RpcService("transaction.rpc"))
 
 	var errRpc error
-	var res *transaction.ProxyOrderResponse
+	var res *transactionclient.ProxyOrderResponse
 	if balanceType == "DFB" {
 		res, errRpc = rpc.ProxyOrderTranaction_DFB(l.ctx, &transaction.ProxyOrderRequest{
 			Req:  ProxyPayOrderRequest,
@@ -101,8 +107,14 @@ func (l *ProxyPayOrderLogic) internalProxyPayOrder(merReq *types.ProxyPayRequest
 	}
 
 	if errRpc != nil {
-		logx.Error("代付提單:", errRpc.Error())
+		logx.Error("代付提單Rpc呼叫失败:", errRpc.Error())
+		resp.RespCode = response.FAIL
 		return nil, errorz.New(response.FAIL, errRpc.Error())
+	} else if res.Code != "000" {
+		logx.Infof("代付交易rpc返回失败，%s 錢包扣款失败: %#v", balanceType, res)
+		resp.RespCode = res.Code
+		resp.RespMsg = res.Message
+		return resp, nil
 	} else {
 		logx.Infof("代付交易rpc完成，%s 錢包扣款完成: %#v", balanceType, res)
 	}
@@ -121,10 +133,8 @@ func (l *ProxyPayOrderLogic) internalProxyPayOrder(merReq *types.ProxyPayRequest
 	//5. 返回給商戶物件
 	var proxyResp = types.ProxyPayOrderResponse{}
 	i18n.SetLang(language.English)
-	if errCHN != nil {
-		logx.Errorf("代付提單: %s ，渠道返回錯誤: %s, %#v", respOrder.OrderNo, errCHN.Error(), proxyPayRespVO)
-		proxyResp.RespCode = response.CHANNEL_REPLY_ERROR
-		proxyResp.RespMsg = i18n.Sprintf(response.CHANNEL_REPLY_ERROR) + ": Code: " + proxyPayRespVO.Code + " Message: " + proxyPayRespVO.Message
+	if errCHN != nil || proxyPayRespVO.Code != "0" {
+		logx.Errorf("代付提單: %s ，渠道返回錯誤: %s:%s, %#v", respOrder.OrderNo, errCHN, i18n.Sprintf(errCHN.Error()), proxyPayRespVO)
 
 		//将商户钱包加回 (merchantCode, orderNO)，更新狀態為失敗單
 		var resRpc *transaction.ProxyPayFailResponse
@@ -139,10 +149,24 @@ func (l *ProxyPayOrderLogic) internalProxyPayOrder(merReq *types.ProxyPayRequest
 				OrderNo:      respOrder.OrderNo,
 			})
 		}
+
 		//因在transaction_service 已更新過訂單，重新抓取訂單
 		if respOrder, queryErr = model.QueryOrderByOrderNo(l.svcCtx.MyDB, res.ProxyOrderNo, ""); queryErr != nil {
 			logx.Errorf("撈取代付訂單錯誤: %s, respOrder:%#v", queryErr, respOrder)
 			return nil, errorz.New(response.FAIL, queryErr.Error())
+		}
+
+		//處理渠道回傳錯誤訊息
+		proxyResp.RespCode = response.CHANNEL_REPLY_ERROR
+		if errCHN != nil {
+			proxyResp.RespMsg = i18n.Sprintf(response.CHANNEL_REPLY_ERROR) + ": Error: " + i18n.Sprintf(errCHN.Error())
+			respOrder.ErrorType = "2" //   1.渠道返回错误	2.渠道异常	3.商户参数错误	4.账户为黑名单	5.其他
+			respOrder.ErrorNote = "渠道异常: " + i18n.Sprintf(errCHN.Error())
+
+		} else if proxyPayRespVO.Code != "0" {
+			respOrder.ErrorType = "1" //   1.渠道返回错误	2.渠道异常	3.商户参数错误	4.账户为黑名单	5.其他
+			respOrder.ErrorNote = "渠道返回错误。Code:" + proxyPayRespVO.Code + " Message: " + proxyPayRespVO.Message
+			proxyResp.RespMsg = i18n.Sprintf(response.CHANNEL_REPLY_ERROR) + ": Code: " + proxyPayRespVO.Code + " Message: " + proxyPayRespVO.Message
 		}
 
 		if errRpc != nil {
@@ -154,17 +178,22 @@ func (l *ProxyPayOrderLogic) internalProxyPayOrder(merReq *types.ProxyPayRequest
 			respOrder.RepaymentStatus = constants.REPAYMENT_SUCCESS
 		}
 
+		// 更新订单
+		if errUpdate := l.svcCtx.MyDB.Table("tx_orders").Updates(respOrder).Error; errUpdate != nil {
+			logx.Error("代付订单更新状态错误: ", errUpdate.Error())
+		}
+
 	} else {
 		respOrder.ChannelOrderNo = proxyPayRespVO.Data.ChannelOrderNo
 		//条整订单状态从"待处理" 到 "交易中"
 		respOrder.Status = constants.TRANSACTION
 		proxyResp.RespCode = response.API_SUCCESS
 		proxyResp.RespMsg = i18n.Sprintf(response.API_SUCCESS) //固定回商戶成功
-	}
 
-	// 更新订单
-	if errUpdate := l.svcCtx.MyDB.Table("tx_orders").Updates(respOrder).Error; errUpdate != nil {
-		logx.Error("代付订单更新状态错误: ", errUpdate.Error())
+		// 更新订单
+		if errUpdate := l.svcCtx.MyDB.Table("tx_orders").Updates(respOrder).Error; errUpdate != nil {
+			logx.Error("代付订单更新状态错误: ", errUpdate.Error())
+		}
 	}
 
 	// 依渠道返回给予订单状态
@@ -211,7 +240,16 @@ func (l *ProxyPayOrderLogic) CheckMerAndWhiteList(req *types.ProxyPayRequestX) (
 }
 
 // 產生rpc 代付需要的請求的資料物件
-func generateRpcdata(merReq *types.ProxyPayOrderRequest, rate *types.CorrespondMerChnRate) (*transaction.ProxyPayOrderRequest, *transaction.CorrespondMerChnRate) {
+func generateRpcdata(merReq *types.ProxyPayRequestX, rate *types.CorrespondMerChnRate) (*transaction.ProxyPayOrderRequest, *transaction.CorrespondMerChnRate) {
+
+	var orderAmount float64
+	if s, ok := merReq.OrderAmount.(string); ok {
+		if s, err := strconv.ParseFloat(s, 64); err == nil {
+			orderAmount = s
+		}
+	} else if f, ok := merReq.OrderAmount.(float64); ok {
+		orderAmount = f
+	}
 
 	ProxyPayOrderRequest := &transaction.ProxyPayOrderRequest{
 		AccessType:   merReq.AccessType,
@@ -226,7 +264,7 @@ func generateRpcdata(merReq *types.ProxyPayOrderRequest, rate *types.CorrespondM
 		BankCity:     merReq.BankCity,
 		BranchName:   merReq.BranchName,
 		BankNo:       merReq.BankNo,
-		OrderAmount:  merReq.OrderAmount,
+		OrderAmount:  orderAmount,
 		DefrayName:   merReq.DefrayName,
 		DefrayId:     merReq.DefrayId,
 		DefrayMobile: merReq.DefrayMobile,

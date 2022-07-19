@@ -30,13 +30,16 @@ func NewTestPayOrderHndlerLogic(ctx context.Context, svcCtx *svc.ServiceContext)
 func (l *TestPayOrderHndlerLogic) TestPayOrderHndler(req *types.TestPayOrderRequest) (resp *types.PayOrderResponse, err error) {
 	var payOrderReq types.PayOrderRequestX
 	copier.Copy(&payOrderReq, &req)
-	payOrderReq.AccessType = "1"
+	payOrderReq.PayOrderRequest.AccessType = "1"
 	payOrderReq.NotifyUrl = "http://172.16.204.115:8083/dior/merchant-api/test_merchant_pay-call-back"
 	payOrderReq.PageUrl = ""
 	payOrderReq.Language = "ZH-CN"
 	payOrderReq.OrderNo = model.GenerateOrderNo("TEST")
 	payOrderReq.OrderName = "TEST"
 	payOrderReq.UserId = "测试员"
+	payOrderReq.PayOrderRequest.OrderAmount = payOrderReq.OrderAmount.String()
+	payOrderReq.PayOrderRequest.AccessType = payOrderReq.AccessType.String()
+	payOrderReq.PayOrderRequest.PayTypeNo = payOrderReq.PayTypeNo.String()
 	payOrderReq.Sign = utils.SortAndSign2(payOrderReq.PayOrderRequest, req.MerchantKey)
 	payOrderReq.MyIp = req.IP
 	payOrderReq.BankCode = req.BankCode

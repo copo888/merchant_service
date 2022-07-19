@@ -1,39 +1,43 @@
-package proxypayorder
+package withdraworder
 
 import (
 	"com.copo/bo_service/common/response"
 	"com.copo/bo_service/common/utils"
-	"com.copo/bo_service/merchant/internal/logic/proxypayorder"
+	"com.copo/bo_service/merchant/internal/logic/withdraworder"
 	"com.copo/bo_service/merchant/internal/svc"
 	"com.copo/bo_service/merchant/internal/types"
 	"encoding/json"
 	"github.com/thinkeridea/go-extend/exnet"
-	"github.com/zeromicro/go-zero/core/logx"
-	"github.com/zeromicro/go-zero/rest/httpx"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"io"
 	"net/http"
 )
 
-func ProxyPayQueryHandler(ctx *svc.ServiceContext) http.HandlerFunc {
+func WithdrawProxyPayApiOrderHandler(ctx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req types.ProxyPayOrderQueryRequestX
+		var req types.ProxyPayRequestX
 
 		span := trace.SpanFromContext(r.Context())
 		defer span.End()
-
-		if err := httpx.ParseJsonBody(r, &req); err != nil {
-			logx.Error("Parse Error:", err.Error())
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
 			response.Json(w, r, response.FAIL, nil, err)
 			return
 		}
 
+		if err := json.Unmarshal(bodyBytes, &req); err != nil {
+			response.Json(w, r, response.FAIL, nil, err)
+			return
+		}
+
+		myIP := exnet.ClientIP(r)
+		req.Ip = myIP
+
 		if err := utils.MyValidator.Struct(req); err != nil {
-			logx.Error("Validatation Error: ", err.Error())
 			response.Json(w, r, response.INVALID_PARAMETER, nil, err)
 			return
 		}
-		req.Ip = exnet.ClientIP(r)
 
 		if requestBytes, err := json.Marshal(req); err == nil {
 			span.SetAttributes(attribute.KeyValue{
@@ -42,8 +46,8 @@ func ProxyPayQueryHandler(ctx *svc.ServiceContext) http.HandlerFunc {
 			})
 		}
 
-		l := proxypayorder.NewProxyPayQueryLogic(r.Context(), ctx)
-		resp, err := l.ProxyPayQuery(&req)
+		l := withdraworder.NewWithdrawProxyPayApiOrderLogic(r.Context(), ctx)
+		resp, err := l.WithdrawProxyPayApiOrder(&req)
 		if err != nil {
 			response.ApiErrorJson(w, r, err.Error(), err)
 		} else {

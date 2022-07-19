@@ -20,7 +20,7 @@ func TestMerchantCallBackHandler(ctx *svc.ServiceContext) http.HandlerFunc {
 		span := trace.SpanFromContext(r.Context())
 		defer span.End()
 
-		if err := httpx.ParseJsonBody(r, &req); err != nil {
+		if err := httpx.ParseForm(r, &req); err != nil {
 			response.Json(w, r, response.FAIL, nil, err)
 			return
 		}

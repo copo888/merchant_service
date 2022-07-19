@@ -17,7 +17,6 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -50,30 +49,30 @@ func VerifyPayOrder(db *gorm.DB, req types.PayOrderRequestX, merchant *types.Mer
 }
 
 func CallChannelForPay(db *gorm.DB, req types.PayOrderRequestX, merchant *types.Merchant, orderNo string, ctx context.Context, svcCtx *svc.ServiceContext) (payReplyVO *vo.PayReplyVO, correspondMerChnRate *types.CorrespondMerChnRate, err error) {
-	
+
 	// 取得支付渠道資訊
-	if correspondMerChnRate, err = merchantchannelrateservice.GetDesignationMerChnRate(db, req.MerchantId, req.PayType, req.Currency, req.PayTypeNo, merchant.BillLadingType); err != nil {
+	if correspondMerChnRate, err = merchantchannelrateservice.GetDesignationMerChnRate(db, req.MerchantId, req.PayType, req.Currency, req.PayTypeNo.String(), merchant.BillLadingType); err != nil {
 		return
 	}
 
 	if correspondMerChnRate.Fee < correspondMerChnRate.ChFee ||
 		correspondMerChnRate.HandlingFee < correspondMerChnRate.ChHandlingFee {
-		return nil,  nil, errorz.New(response.RATE_SETTING_ERROR)
+		return nil, nil, errorz.New(response.RATE_SETTING_ERROR)
 	}
 
 	// 確認支付金額上下限
 	var amount float64
-	if amount, err = strconv.ParseFloat(req.OrderAmount, 64); err != nil {
-		return nil,  nil, errorz.New(response.INVALID_AMOUNT, fmt.Sprintf("(orderAmount): %s", req.OrderAmount))
+	if amount, err = req.OrderAmount.Float64(); err != nil {
+		return nil, nil, errorz.New(response.INVALID_AMOUNT, fmt.Sprintf("(orderAmount): %s", req.OrderAmount))
 	}
 	if amount < 0 {
-		return nil,  nil, errorz.New(response.ORDER_AMOUNT_INVALID, fmt.Sprintf("(orderAmount): %f", req.OrderAmount))
+		return nil, nil, errorz.New(response.ORDER_AMOUNT_INVALID, fmt.Sprintf("(orderAmount): %f", req.OrderAmount))
 	}
 	if amount > correspondMerChnRate.SingleMaxCharge {
-		return nil,  nil, errorz.New(response.ORDER_AMOUNT_LIMIT_MAX, fmt.Sprintf("(orderAmount): %f", req.OrderAmount))
+		return nil, nil, errorz.New(response.ORDER_AMOUNT_LIMIT_MAX, fmt.Sprintf("(orderAmount): %f", req.OrderAmount))
 	}
 	if amount < correspondMerChnRate.SingleMinCharge {
-		return nil,  nil, errorz.New(response.ORDER_AMOUNT_LIMIT_MIN, fmt.Sprintf("(orderAmount): %f", req.OrderAmount))
+		return nil, nil, errorz.New(response.ORDER_AMOUNT_LIMIT_MIN, fmt.Sprintf("(orderAmount): %f", req.OrderAmount))
 	}
 
 	// 組成請求json
@@ -81,7 +80,7 @@ func CallChannelForPay(db *gorm.DB, req types.PayOrderRequestX, merchant *types.
 		OrderNo:           orderNo,
 		PayType:           correspondMerChnRate.PayTypeCode,
 		ChannelPayType:    correspondMerChnRate.MapCode,
-		TransactionAmount: req.OrderAmount,
+		TransactionAmount: req.OrderAmount.String(),
 		BankCode:          req.BankCode,
 		PageUrl:           req.PageUrl,
 		OrderName:         req.OrderName,
@@ -96,24 +95,30 @@ func CallChannelForPay(db *gorm.DB, req types.PayOrderRequestX, merchant *types.
 	span := trace.SpanFromContext(ctx)
 	payKey, errk := utils.MicroServiceEncrypt(svcCtx.Config.ApiKey.PayKey, svcCtx.Config.ApiKey.PublicKey)
 	if errk != nil {
-		return nil,  nil, errorz.New(response.GENERAL_EXCEPTION, err.Error())
+		logx.Errorf("MicroServiceEncrypt: %s", err.Error())
+		return nil, nil, errorz.New(response.GENERAL_EXCEPTION, err.Error())
 	}
 
-	url := fmt.Sprintf("http://%s:%s/api/pay", svcCtx.Config.Host, correspondMerChnRate.ChannelPort)
+	url := fmt.Sprintf("%s:%s/api/pay", svcCtx.Config.Server, correspondMerChnRate.ChannelPort)
 	res, errx := gozzle.Post(url).Timeout(10).Trace(span).Header("authenticationPaykey", payKey).JSON(payBO)
+	if res != nil {
+		logx.Info("response Status:", res.Status())
+		logx.Info("response Body:", string(res.Body()))
+	}
 	if errx != nil {
-		return nil,  nil, errorz.New(response.GENERAL_EXCEPTION, errx.Error())
+		logx.Errorf("call Channel cha: %s", errx.Error())
+		return nil, nil, errorz.New(response.GENERAL_EXCEPTION, errx.Error())
 	} else if res.Status() != 200 {
-		return nil,  nil, errorz.New(response.INVALID_STATUS_CODE, fmt.Sprintf("call channelApp httpStatus:%d", res.Status()))
+		return nil, nil, errorz.New(response.INVALID_STATUS_CODE, fmt.Sprintf("call channelApp httpStatus:%d", res.Status()))
 	}
 
 	// 處理res
 	channelRespBodyVO := vo.PayReplBodyVO{}
 	if err = res.DecodeJSON(&channelRespBodyVO); err != nil {
-		return nil,  nil, errorz.New(response.CHANNEL_REPLY_ERROR, err.Error())
+		return nil, nil, errorz.New(response.CHANNEL_REPLY_ERROR, err.Error())
 	}
 	if channelRespBodyVO.Code != "0" {
-		return nil,  nil, errorz.New(channelRespBodyVO.Code, channelRespBodyVO.Message)
+		return nil, nil, errorz.New(channelRespBodyVO.Code, channelRespBodyVO.Message)
 	}
 	payReplyVO = &channelRespBodyVO.Data
 
@@ -135,7 +140,7 @@ func GetPayOrderResponse(req types.PayOrderRequestX, replyVO vo.PayReplyVO, orde
 	}
 	if strings.EqualFold(replyVO.PayPageType, "json") && replyVO.IsCheckOutMer {
 		// 存渠道銀行卡訊息至 Redis 6分鐘
-		if err = svcCtx.RedisClient.Set(ctx, redisKey.CACHE_PAY_ORDER_CHANNEL_BANK + orderNo, replyVO.PayPageInfo, 6 * time.Minute).Err(); err != nil {
+		if err = svcCtx.RedisClient.Set(ctx, redisKey.CACHE_PAY_ORDER_CHANNEL_BANK+orderNo, replyVO.PayPageInfo, 6*time.Minute).Err(); err != nil {
 			return nil, errorz.New(response.GENERAL_EXCEPTION)
 		}
 		// 返回自組收銀台 URL

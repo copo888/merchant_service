@@ -17,6 +17,7 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 	"golang.org/x/text/language"
 	"gorm.io/gorm"
+	"regexp"
 	"strconv"
 )
 
@@ -35,6 +36,7 @@ func NewWithdrawApiOrderLogic(ctx context.Context, svcCtx *svc.ServiceContext) W
 }
 
 func (l *WithdrawApiOrderLogic) WithdrawApiOrder(req *types.WithdrawApiOrderRequestX) (resp *types.WithdrawApiOrderResponse, err error) {
+	logx.Infof("Enter withdraw-order: %#v", req)
 	db := l.svcCtx.MyDB
 	redisKey := fmt.Sprintf("%s-%s", req.MerchantId, req.OrderNo)
 	redisLock := redislock.New(l.svcCtx.RedisClient, redisKey, "withdraw:")
@@ -65,11 +67,28 @@ func (l *WithdrawApiOrderLogic) WithdrawApiOrder(req *types.WithdrawApiOrderRequ
 		}
 
 		if isWhite := merchantsService.IPChecker(req.MyIp, merchant.ApiIP); !isWhite {
+			logx.Error("白名單檢查錯誤: ", req.MyIp)
 			return nil, errorz.New(response.API_IP_DENIED, "IP: "+req.MyIp)
+		}
+
+		//验证银行卡号(必填)(必须为数字)(长度必须在10~22码)
+		isMatch2, _ := regexp.MatchString(constants.REGEXP_BANK_ID, req.AccountNo)
+		currencyCode := req.Currency
+		if currencyCode == constants.CURRENCY_THB {
+			if req.AccountNo == "" || len(req.AccountNo) < 10 || len(req.AccountNo) > 16 || !isMatch2 {
+				logx.Error("銀行卡號檢查錯誤，需10-16碼內：", req.AccountNo)
+				return nil,errorz.New(response.INVALID_BANK_NO, "AccountNo: " + req.AccountNo)
+			}
+		}else if currencyCode == constants.CURRENCY_CNY {
+			if req.AccountNo == "" || len(req.AccountNo) < 13 || len(req.AccountNo) > 22 || !isMatch2 {
+				logx.Error("銀行卡號檢查錯誤，需13-22碼內：", req.AccountNo)
+				return nil,errorz.New(response.INVALID_BANK_NO, "AccountNo: " + req.AccountNo)
+			}
 		}
 
 		// 驗簽檢查
 		if isSameSign := utils.VerifySign(req.Sign, req.WithdrawApiOrderRequest, merchant.ScrectKey); !isSameSign {
+			logx.Error("驗簽檢查錯誤: ", req.Sign)
 			return nil, errorz.New(response.INVALID_SIGN)
 		}
 
@@ -87,6 +106,7 @@ func (l *WithdrawApiOrderLogic) WithdrawApiOrder(req *types.WithdrawApiOrderRequ
 			return nil, errorz.New(response.GENERAL_EXCEPTION)
 		}
 		if isExist {
+			logx.Error("訂單號重複錯誤: ", req.OrderNo)
 			return nil, errorz.New(response.REPEAT_ORDER_NO)
 		}
 
@@ -111,7 +131,7 @@ func (l *WithdrawApiOrderLogic) WithdrawApiOrder(req *types.WithdrawApiOrderRequ
 
 		orderWithdrawCreateResp, err = ordersService.WithdrawOrderCreate(db, withdrawOrders, constants.API, l.ctx, l.svcCtx)
 		if err != nil {
-			logx.Error("err: ", err.Error())
+			logx.Error("下發api提單失敗: ", err.Error())
 			return nil, err
 		}
 
@@ -132,6 +152,6 @@ func (l *WithdrawApiOrderLogic) WithdrawApiOrder(req *types.WithdrawApiOrderRequ
 
 		return
 	}else {
-		return nil, errorz.New(response.API_GENERAL_ERROR)
+		return nil, errorz.New(response.TRANSACTION_PROCESSING)
 	}
 }

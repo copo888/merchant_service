@@ -11,6 +11,7 @@ import (
 	"github.com/copo888/transaction_service/rpc/transactionclient"
 	"github.com/neccoys/go-zero-extension/redislock"
 	"regexp"
+	"strconv"
 	"time"
 
 	"com.copo/bo_service/common/apimodel/bo"
@@ -62,7 +63,7 @@ func ProxyOrder(db *gorm.DB, req *types.ProxyPayRequestX) (rate *types.Correspon
 	//TODO 儲存DB do and wait for lock 15s
 	rate, err = checkProxyOrderAndRate(db, merchant, req)
 	if err != nil {
-		logx.Errorf("代付提单储存失败%s:", err.Error())
+		logx.Errorf("代付提单储存失败%s:%s", err.Error(), i18n.Sprintf(err.Error()))
 		return rate, err
 	}
 
@@ -75,11 +76,21 @@ func ProxyOrder(db *gorm.DB, req *types.ProxyPayRequestX) (rate *types.Correspon
         2. err       將错误返回
 */
 func checkProxyOrderAndRate(db *gorm.DB, merchant *types.Merchant, req *types.ProxyPayRequestX) (rate *types.CorrespondMerChnRate, err error) {
-	//respDTO := &vo.ProxyPayOrderRespVO{}
-	//返回物件ProxyPayOrderRespVO
-	//userAccount := "TEST0001"
-	//var balanceType string
-	//var orderFeeProfits []types.OrderFeeProfit
+
+	var orderAmount float64
+	if s, ok := req.OrderAmount.(string); ok {
+		if s, err := strconv.ParseFloat(s, 64); err == nil {
+			orderAmount = s
+		} else {
+			return nil, errorz.New(response.API_INVALID_PARAMETER, err.Error())
+		}
+	} else if f, ok := req.OrderAmount.(float64); ok {
+		orderAmount = f
+	} else {
+		s := fmt.Sprintf("OrderAmount err: %#v", req.OrderAmount)
+		logx.Errorf(s)
+		return nil, errorz.New(response.API_INVALID_PARAMETER, s)
+	}
 
 	//检查商户ＡＰＩ提单，代付订单资料是否正确
 	err = validProxyPayOrderDataByApi(db, req)
@@ -102,10 +113,10 @@ func checkProxyOrderAndRate(db *gorm.DB, merchant *types.Merchant, req *types.Pr
 		return nil, errorz.New(response.MERCHANT_IS_NOT_SETTING_CHANNEL, string(jsonData), errParse.Error())
 	} else {
 		// 判断提单金额最低金额、最高金额
-		if req.OrderAmount < rate1.SingleMinCharge {
+		if orderAmount < rate1.SingleMinCharge {
 			logx.Errorf("付款人:%s,银行账号:%s,%f单笔小于最低代付金额%f", req.DefrayName, req.BankNo, req.OrderAmount, rate1.SingleMinCharge)
 			return rate1, errorz.New(response.IS_LESS_MINIMUN_AMOUNT, fmt.Sprintf("%f", req.OrderAmount), fmt.Sprintf("%f", rate1.SingleMinCharge))
-		} else if req.OrderAmount > rate1.SingleMaxCharge {
+		} else if orderAmount > rate1.SingleMaxCharge {
 			logx.Errorf("付款人:%s,银行账号:%s,%f单笔大于最高代付金额%f", req.DefrayName, req.BankNo, req.OrderAmount, rate1.SingleMaxCharge)
 			return rate1, errorz.New(response.IS_GREATER_MXNIMUN_AMOUNT, fmt.Sprintf("%f", req.OrderAmount), fmt.Sprintf("%f", rate1.SingleMinCharge))
 		}
@@ -135,11 +146,14 @@ func CallChannel_ProxyOrder(context *context.Context, config *config.Config, mer
 
 	span := trace.SpanFromContext(*context)
 
+	precise := utils.GetDecimalPlaces(respOrder.OrderAmount)
+	valTrans := strconv.FormatFloat(respOrder.OrderAmount, 'f', precise, 64)
+
 	// 新增请求代付请求app 物件 ProxyPayBO
 	ProxyPayBO := bo.ProxyPayBO{
 		OrderNo:              respOrder.OrderNo,
 		TransactionType:      constants.TRANS_TYPE_PROXY_PAY,
-		TransactionAmount:    fmt.Sprintf("%f", respOrder.OrderAmount),
+		TransactionAmount:    valTrans,
 		ReceiptAccountNumber: respOrder.MerchantBankNo,
 		ReceiptAccountName:   respOrder.MerchantAccountName,
 		ReceiptCardProvince:  respOrder.MerchantBankProvince,
@@ -155,9 +169,9 @@ func CallChannel_ProxyOrder(context *context.Context, config *config.Config, mer
 	if errk != nil {
 		return nil, errorz.New(response.GENERAL_EXCEPTION, errk.Error())
 	}
-
-	url := fmt.Sprintf("http://%s:%s/api/proxy-pay", config.Host, rate.ChannelPort)
-	chnResp, chnErr := gozzle.Post(url).Timeout(10).Trace(span).Header("authenticationProxyPaykey", ProxyKey).JSON(ProxyPayBO)
+	logx.Infof("EncryptKey: %s，ProxyKey:%s ，PublicKey:%s ", ProxyKey, config.ApiKey.ProxyKey, config.ApiKey.PublicKey)
+	url := fmt.Sprintf("%s:%s/api/proxy-pay", config.Server, rate.ChannelPort)
+	chnResp, chnErr := gozzle.Post(url).Timeout(10).Trace(span).Header("authenticationProxykey", ProxyKey).JSON(ProxyPayBO)
 	//res, err2 := http.Post(url,"application/json",bytes.NewBuffer(body))
 	if chnResp != nil {
 		logx.Info("response Status:", chnResp.Status())
@@ -199,7 +213,7 @@ func CallChannel_ProxyQuery(context *context.Context, config *config.Config, api
 		return nil, errorz.New(response.GENERAL_EXCEPTION, errk.Error())
 	}
 
-	chnResp, chnErr := gozzle.Post(apiUrl).Timeout(10).Trace(span).Header("authenticationProxyPaykey", ProxyKey).JSON(proxyQueryBO)
+	chnResp, chnErr := gozzle.Post(apiUrl).Timeout(10).Trace(span).Header("authenticationProxykey", ProxyKey).JSON(proxyQueryBO)
 	//res, err2 := http.Post(url,"application/json",bytes.NewBuffer(body))
 	logx.Info("response Status:", chnResp.Status())
 	logx.Info("response Body:", string(chnResp.Body()))
@@ -255,6 +269,19 @@ func (l *OrdersService) internalChannelCallBackForProxy(req *types.ProxyPayOrder
 		logx.Infof("代付订单：%s，人工处里状态为：%s，判定已进入人工处里阶段，不接受回调变更。", orderX.OrderNo, orderX.PersonProcessStatus)
 		//TODO 是否有需要回寫代付歷程?
 		return errorz.New(response.PROXY_PAY_IS_PERSON_PROCESS, "提单目前为人工处里阶段，不可回调变更")
+	} else if req.Amount != orderX.OrderAmount {
+		//代付回调金额若不等于订单金额，订单转 人工处理，并塞error_message
+		logx.Errorf("代付回调金额不等于订单金额，订单转人工处理。单号:%s", orderX.OrderNo)
+		orderX.ErrorNote = "代付渠道回调金额不等于订单金额"
+		orderX.ErrorType = "1"
+		orderX.PersonProcessStatus = constants.PERSON_PROCESS_WAIT_CHANGE
+		orderX.RepaymentStatus = constants.REPAYMENT_WAIT
+
+		if errUpdate := l.svcCtx.MyDB.Table("tx_orders").Updates(orderX).Error; errUpdate != nil {
+			logx.Error("代付订单更新状态错误: ", errUpdate.Error())
+		}
+
+		return errorz.New(response.PROXY_PAY_AMOUNT_INVALID, "代付回调金额与订单金额不符")
 	}
 	/*更新訂單:
 	1. 訂單狀態(依渠道回調決定)
@@ -271,11 +298,6 @@ func (l *OrdersService) internalChannelCallBackForProxy(req *types.ProxyPayOrder
 			orderX.ErrorNote = "渠道回调: 交易失败"
 		}
 	}
-	//是否以回調給商戶
-	if orderX.IsMerchantCallback == constants.MERCHANT_CALL_BACK_NO {
-		orderX.IsMerchantCallback = constants.MERCHANT_CALL_BACK_YES
-		orderX.MerchantCallBackAt = time.Now().UTC()
-	}
 
 	orderX.UpdatedBy = req.UpdatedBy
 	orderX.UpdatedAt = time.Now().UTC()
@@ -288,11 +310,6 @@ func (l *OrdersService) internalChannelCallBackForProxy(req *types.ProxyPayOrder
 	}
 	if req.ChannelCharge != 0 {
 		//渠道有回傳渠道手續費
-	}
-
-	//代付回调金额若不等于订单金额，订单转 人工处理，并塞error_message
-	if req.Amount != orderX.OrderAmount {
-
 	}
 
 	// 更新订单
@@ -343,23 +360,29 @@ func (l *OrdersService) internalChannelCallBackForProxy(req *types.ProxyPayOrder
 				orderX.RepaymentStatus = constants.REPAYMENT_SUCCESS
 				//TODO 收支紀錄
 			}
-
-			// 更新订单
-			if errUpdate := l.svcCtx.MyDB.Table("tx_orders").Updates(orderX).Error; errUpdate != nil {
-				logx.Error("代付订单更新状态错误: ", errUpdate.Error())
-			}
 		}
-		//TODO 是否有需還款成功才回調給商戶?
-		//若訂單單來源為API且尚未回調給商戶，進行回調給商戶
-		if orderX.Source == constants.API && orderX.IsMerchantCallback == constants.IS_MERCHANT_CALLBACK_NO {
-			logx.Infof("代付订单回调状态为[失敗]，主动回调API订单：%s=======================================>", orderX.OrderNo)
-			if errPoseMer := merchantsService.PostCallbackToMerchant(l.svcCtx.MyDB, &l.ctx, orderX); errPoseMer != nil {
-				//不拋錯
-				logx.Error("回調商戶錯誤:", errPoseMer)
-			}
-		}
-
 	} //  ==========渠道回調失敗=========END
+
+	//TODO 是否有需還款成功才回調給商戶?
+	//若訂單單來源為API且尚未回調給商戶，進行回調給商戶
+	if orderX.Source == constants.API && orderX.IsMerchantCallback == constants.IS_MERCHANT_CALLBACK_NO {
+		logx.Infof("代付订单回调状态为[失敗]，主动回调API订单：%s=======================================>", orderX.OrderNo)
+		if errPoseMer := merchantsService.PostCallbackToMerchant(l.svcCtx.MyDB, &l.ctx, orderX); errPoseMer != nil {
+			//不拋錯
+			logx.Error("回調商戶錯誤:", errPoseMer)
+		} else {
+			//更改回調商戶状态
+			if orderX.IsMerchantCallback == constants.MERCHANT_CALL_BACK_NO {
+				orderX.IsMerchantCallback = constants.MERCHANT_CALL_BACK_YES
+				orderX.MerchantCallBackAt = time.Now().UTC()
+			}
+		}
+	}
+
+	// 更新订单
+	if errUpdate := l.svcCtx.MyDB.Table("tx_orders").Updates(orderX).Error; errUpdate != nil {
+		logx.Error("代付订单更新状态错误: ", errUpdate.Error())
+	}
 
 	return nil
 }
@@ -436,11 +459,28 @@ func autoFillBankName(db *gorm.DB, req *types.ProxyPayRequestX) (err error) {
 }
 
 func validateProxyParam(db *gorm.DB, req *types.ProxyPayRequestX, merchant *types.Merchant) (err error) {
-	// 檢查簽名 TODO: 驗簽先拿掉
-	//checkSign := utils.VerifySign(req.Sign, req.ProxyPayOrderRequest, merchant.ScrectKey)
-	//if !checkSign {
-	//	return errorz.New(response.INVALID_SIGN)
-	//}
+
+	var orderAmount float64
+	if s, ok := req.OrderAmount.(string); ok {
+		if s, err := strconv.ParseFloat(s, 64); err == nil {
+			orderAmount = s
+		} else {
+			return errorz.New(response.API_INVALID_PARAMETER, err.Error())
+		}
+	} else if f, ok := req.OrderAmount.(float64); ok {
+		orderAmount = f
+	} else {
+		s := fmt.Sprintf("OrderAmount err: %#v", req.OrderAmount)
+		logx.Errorf(s)
+		return errorz.New(response.API_INVALID_PARAMETER, s)
+	}
+	req.ProxyPayOrderRequest.OrderAmount = orderAmount
+
+	// 檢查簽名
+	checkSign := utils.VerifySign(req.Sign, req.ProxyPayOrderRequest, merchant.ScrectKey)
+	if !checkSign {
+		return errorz.New(response.INVALID_SIGN)
+	}
 	// 檢查新增USDT 钱包地址判断 协定固定 USDT-TRC20
 	if req.Currency == "USDT" {
 		if isMatch, _ := regexp.MatchString(constants.REGEXP_WALLET_TRC, req.BankNo); !isMatch {
@@ -476,8 +516,17 @@ func validateProxyParam(db *gorm.DB, req *types.ProxyPayRequestX, merchant *type
 
 	//6.验证银行卡号(必填)(必须为数字)(长度必须在13~22码)
 	isMatch2, _ := regexp.MatchString(constants.REGEXP_BANK_ID, req.BankNo)
-	if req.BankNo == "" || len(req.BankNo) < 13 || len(req.BankNo) > 22 || !isMatch2 {
-		return errorz.New(response.INVALID_BANK_NO, "BankNo: "+req.BankNo)
+	currencyCode := req.Currency
+	if currencyCode == constants.CURRENCY_THB {
+		if req.BankNo == "" || len(req.BankNo) < 10 || len(req.BankNo) > 16 || !isMatch2 {
+			logx.Error("銀行卡號檢查錯誤，需10-16碼內：", req.BankNo)
+			return errorz.New(response.INVALID_BANK_NO, "BankNo: " + req.BankNo)
+		}
+	}else if currencyCode == constants.CURRENCY_CNY {
+		if req.BankNo == "" || len(req.BankNo) < 13 || len(req.BankNo) > 22 || !isMatch2 {
+			logx.Error("銀行卡號檢查錯誤，需13-22碼內：", req.BankNo)
+			return errorz.New(response.INVALID_BANK_NO, "BankNo: " + req.BankNo)
+		}
 	}
 
 	//7.验证开户人姓名(必填)
@@ -486,7 +535,7 @@ func validateProxyParam(db *gorm.DB, req *types.ProxyPayRequestX, merchant *type
 	}
 
 	//8.验证交易金额(必填)
-	if req.OrderAmount <= 0 {
+	if orderAmount <= 0 {
 		logx.Error("金额错误", req.OrderAmount)
 		return errorz.New(response.INVALID_AMOUNT, "OrderAmount: "+fmt.Sprintln("%d", req.OrderAmount))
 	}
