@@ -74,7 +74,6 @@ func (l *PayOrderLogic) DoPayOrder(req types.PayOrderRequestX) (resp *types.PayO
 		}
 	}
 
-
 	// 檢查白名單
 	if isWhite := merchantsService.IPChecker(req.MyIp, merchant.ApiIP); !isWhite {
 		return nil, errorz.New(response.IP_DENIED, "IP: "+req.MyIp)
@@ -84,9 +83,9 @@ func (l *PayOrderLogic) DoPayOrder(req types.PayOrderRequestX) (resp *types.PayO
 	req.PayOrderRequest.AccessType = req.AccessType.String()
 	req.PayOrderRequest.PayTypeNo = req.PayTypeNo.String()
 
-	if isSameSign := utils.VerifySign(req.Sign, req.PayOrderRequest, merchant.ScrectKey); !isSameSign {
-		return nil, errorz.New(response.INVALID_SIGN)
-	}
+	//if isSameSign := utils.VerifySign(req.Sign, req.PayOrderRequest, merchant.ScrectKey); !isSameSign {
+	//	return nil, errorz.New(response.INVALID_SIGN)
+	//}
 
 	// 资料验证
 	if err = ordersService.VerifyPayOrder(l.svcCtx.MyDB, req, merchant); err != nil {
@@ -114,7 +113,7 @@ func (l *PayOrderLogic) DoPayOrder(req types.PayOrderRequestX) (resp *types.PayO
 	copier.Copy(&rpcPayOrder, &req)
 	copier.Copy(&rpcRate, correspondMerChnRate)
 	rpcPayOrder.OrderAmount = req.OrderAmount.String()
-	
+
 	// CALL transactionc PayOrderTranaction
 	rpc := transactionclient.NewTransaction(l.svcCtx.RpcService("transaction.rpc"))
 	rpcResp, err2 := rpc.PayOrderTranaction(l.ctx, &transaction.PayOrderRequest{

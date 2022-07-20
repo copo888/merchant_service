@@ -477,10 +477,10 @@ func validateProxyParam(db *gorm.DB, req *types.ProxyPayRequestX, merchant *type
 	req.ProxyPayOrderRequest.OrderAmount = orderAmount
 
 	// 檢查簽名
-	checkSign := utils.VerifySign(req.Sign, req.ProxyPayOrderRequest, merchant.ScrectKey)
-	if !checkSign {
-		return errorz.New(response.INVALID_SIGN)
-	}
+	//checkSign := utils.VerifySign(req.Sign, req.ProxyPayOrderRequest, merchant.ScrectKey)
+	//if !checkSign {
+	//	return errorz.New(response.INVALID_SIGN)
+	//}
 	// 檢查新增USDT 钱包地址判断 协定固定 USDT-TRC20
 	if req.Currency == "USDT" {
 		if isMatch, _ := regexp.MatchString(constants.REGEXP_WALLET_TRC, req.BankNo); !isMatch {
@@ -520,12 +520,12 @@ func validateProxyParam(db *gorm.DB, req *types.ProxyPayRequestX, merchant *type
 	if currencyCode == constants.CURRENCY_THB {
 		if req.BankNo == "" || len(req.BankNo) < 10 || len(req.BankNo) > 16 || !isMatch2 {
 			logx.Error("銀行卡號檢查錯誤，需10-16碼內：", req.BankNo)
-			return errorz.New(response.INVALID_BANK_NO, "BankNo: " + req.BankNo)
+			return errorz.New(response.INVALID_BANK_NO, "BankNo: "+req.BankNo)
 		}
-	}else if currencyCode == constants.CURRENCY_CNY {
+	} else if currencyCode == constants.CURRENCY_CNY {
 		if req.BankNo == "" || len(req.BankNo) < 13 || len(req.BankNo) > 22 || !isMatch2 {
 			logx.Error("銀行卡號檢查錯誤，需13-22碼內：", req.BankNo)
-			return errorz.New(response.INVALID_BANK_NO, "BankNo: " + req.BankNo)
+			return errorz.New(response.INVALID_BANK_NO, "BankNo: "+req.BankNo)
 		}
 	}
 
