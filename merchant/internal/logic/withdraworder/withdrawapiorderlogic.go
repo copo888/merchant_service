@@ -77,20 +77,20 @@ func (l *WithdrawApiOrderLogic) WithdrawApiOrder(req *types.WithdrawApiOrderRequ
 		if currencyCode == constants.CURRENCY_THB {
 			if req.AccountNo == "" || len(req.AccountNo) < 10 || len(req.AccountNo) > 16 || !isMatch2 {
 				logx.Error("銀行卡號檢查錯誤，需10-16碼內：", req.AccountNo)
-				return nil,errorz.New(response.INVALID_BANK_NO, "AccountNo: " + req.AccountNo)
+				return nil, errorz.New(response.INVALID_BANK_NO, "AccountNo: "+req.AccountNo)
 			}
-		}else if currencyCode == constants.CURRENCY_CNY {
+		} else if currencyCode == constants.CURRENCY_CNY {
 			if req.AccountNo == "" || len(req.AccountNo) < 13 || len(req.AccountNo) > 22 || !isMatch2 {
 				logx.Error("銀行卡號檢查錯誤，需13-22碼內：", req.AccountNo)
-				return nil,errorz.New(response.INVALID_BANK_NO, "AccountNo: " + req.AccountNo)
+				return nil, errorz.New(response.INVALID_BANK_NO, "AccountNo: "+req.AccountNo)
 			}
 		}
 
 		// 驗簽檢查
-		if isSameSign := utils.VerifySign(req.Sign, req.WithdrawApiOrderRequest, merchant.ScrectKey); !isSameSign {
-			logx.Error("驗簽檢查錯誤: ", req.Sign)
-			return nil, errorz.New(response.INVALID_SIGN)
-		}
+		//if isSameSign := utils.VerifySign(req.Sign, req.WithdrawApiOrderRequest, merchant.ScrectKey); !isSameSign {
+		//	logx.Error("驗簽檢查錯誤: ", req.Sign)
+		//	return nil, errorz.New(response.INVALID_SIGN)
+		//}
 
 		orderAmount, errParse := strconv.ParseFloat(req.OrderAmount, 64)
 		if errParse != nil {
@@ -151,7 +151,7 @@ func (l *WithdrawApiOrderLogic) WithdrawApiOrder(req *types.WithdrawApiOrderRequ
 		}
 
 		return
-	}else {
+	} else {
 		return nil, errorz.New(response.TRANSACTION_PROCESSING)
 	}
 }
