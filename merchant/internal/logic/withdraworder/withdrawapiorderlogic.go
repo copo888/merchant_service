@@ -87,10 +87,10 @@ func (l *WithdrawApiOrderLogic) WithdrawApiOrder(req *types.WithdrawApiOrderRequ
 		}
 
 		// 驗簽檢查
-		//if isSameSign := utils.VerifySign(req.Sign, req.WithdrawApiOrderRequest, merchant.ScrectKey); !isSameSign {
-		//	logx.Error("驗簽檢查錯誤: ", req.Sign)
-		//	return nil, errorz.New(response.INVALID_SIGN)
-		//}
+		if isSameSign := utils.VerifySign(req.Sign, req.WithdrawApiOrderRequest, merchant.ScrectKey); !isSameSign {
+			logx.Error("驗簽檢查錯誤: ", req.Sign)
+			return nil, errorz.New(response.INVALID_SIGN)
+		}
 
 		orderAmount, errParse := strconv.ParseFloat(req.OrderAmount, 64)
 		if errParse != nil {
